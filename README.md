@@ -233,7 +233,7 @@ The implementation provided by ExtendFiler will first check for an existing meth
 
 ## Contributing
 
-We strongly encourage contributions, please fork and submit Patch Requests.
+We strongly encourage contributions, please fork and submit Pull Requests.
 
 New FileSystem types do not need to be added to this repo, but if they are good quality implementations of useful new FileSystems we will happily add a link and description to this Readme. 
 
