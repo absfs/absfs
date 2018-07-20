@@ -1,4 +1,5 @@
-# absfs is a go package that defines an abstract filesystem interface.
+# absfs - Abstract File System for go
+`absfs` is a go package that defines an abstract filesystem interface.
 
 The design goal of absfs is to support a system of composable filesystem implementations for various uses from testing to complex storage management.
 
