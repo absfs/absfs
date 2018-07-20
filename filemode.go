@@ -73,6 +73,8 @@ func ParseFileMode(input string) (os.FileMode, error) {
 }
 
 const (
+	OS_ACCESS = 0x3
+
 	OS_READ        = 04
 	OS_WRITE       = 02
 	OS_EX          = 01
