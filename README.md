@@ -127,8 +127,8 @@ An `absfs.Filer` implementation that does nothing and returns no errors. Maybe b
 ### PassThroughFs 
 An `absfs.Filer` implementation that wraps another `absfs.Filer` passing all operation through unaltered to the underlying filesystem. Also maybe be useful as a starting place for new file system implementations.
 
-### OsFs 
-An `absfs.Filer` implementation that wraps the `os` standard library package file handling functions.
+### [OsFs](https://github.com/absfs/osfs) 
+An `absfs.FileSystem` implementation that wraps the `os` standard library package file handling functions.
 
 ### MemFs
 An `absfs.Filer` implementation that provides an in memory ephemeral filesystem. 
