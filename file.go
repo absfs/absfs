@@ -109,6 +109,60 @@ func ExtendUnseekable(uf UnSeekable) (Seekable, error) {
 	return sb, nil
 }
 
+type InvalidFile struct{}
+
+func (f *InvalidFile) Name() string {
+	return ""
+}
+
+func (f *InvalidFile) Read(p []byte) (int, error) {
+	return 0, os.ErrInvalid
+}
+
+func (f *InvalidFile) Write(p []byte) (int, error) {
+	return 0, os.ErrInvalid
+}
+
+func (f *InvalidFile) Close() error {
+	return os.ErrInvalid
+}
+
+func (f *InvalidFile) Sync() error {
+	return os.ErrInvalid
+}
+
+func (f *InvalidFile) Stat() (os.FileInfo, error) {
+	return nil, os.ErrInvalid
+}
+
+func (f *InvalidFile) Readdir(int) ([]os.FileInfo, error) {
+	return nil, os.ErrInvalid
+}
+
+func (f *InvalidFile) Seek(offset int64, whence int) (ret int64, err error) {
+	return 0, os.ErrInvalid
+}
+
+func (f *InvalidFile) ReadAt(b []byte, off int64) (n int, err error) {
+	return 0, os.ErrInvalid
+}
+
+func (f *InvalidFile) WriteAt(b []byte, off int64) (n int, err error) {
+	return 0, os.ErrInvalid
+}
+
+func (f *InvalidFile) WriteString(s string) (n int, err error) {
+	return 0, os.ErrInvalid
+}
+
+func (f *InvalidFile) Truncate(size int64) error {
+	return os.ErrInvalid
+}
+
+func (f *InvalidFile) Readdirnames(n int) (names []string, err error) {
+	return nil, os.ErrInvalid
+}
+
 func ExtendSeekable(sf Seekable) File {
 	return &file{sf}
 }
