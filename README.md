@@ -117,53 +117,53 @@ type SymlinkFileSystem interface {
 }
 ```
 
-## AbsFS Provided filesystems
+## File Systems
 
 ---
 
-### NilFs 
-An `absfs.Filer` implementation that does nothing and returns no errors. Maybe be useful as a starting place for new file system implementations.
-
-### PassThroughFs 
-An `absfs.Filer` implementation that wraps another `absfs.Filer` passing all operation through unaltered to the underlying filesystem. Also maybe be useful as a starting place for new file system implementations.
-
 ### [OsFs](https://github.com/absfs/osfs) 
-An `absfs.FileSystem` implementation that wraps the `os` standard library package file handling functions.
+An `absfs.FileSystem` implementation that wraps the equivalent `os` standard library filesystem functions. Using `osfs` is essentially identical to using the `os` package except that it implements a per object current working directory. 
 
-### MemFs
-An `absfs.Filer` implementation that provides an in memory ephemeral filesystem. 
+### [MemFs](https://github.com/absfs/memfs)
+The `memfs` filesystem implements a memory only filesystem.
 
-### ReadOnlyFs
-An `absfs.Filer` that wraps any other `absfs.Filer` and intercepts any attempt to write data and responds with the appropriate read only permissions errors.
+### [NilFs](https://github.com/absfs/nilfs)
+The Nil FileSystem is a no-op implementation. Methods have no effect and most return no errors. The `Read` and `ReadAt` methods always return `io.EOF` to avoid infinite loops.
 
-### BaseFS
-An `absfs.Filer` that wraps any other `absfs.Filer` and forces all path operations to be constrained to folder of the underlying filesystem. 
+### [PTFS](https://github.com/absfs/ptfs)
+The Pass Through FileSystem (`ptfs`) takes any object that implements `absfs.FileSystem` and passes all methods through unaltered to that object.
 
-### HttpFS
-A `http.FileSystem` that wraps any `absfs.Filer`.
+### [ROFS](https://github.com/absfs/rofs)
+The `rofs` is a read-only filesystem that can wrap any other filesystem implementation and make it read only.
 
-### CorFS (cache on read fs)
+### [BaseFS](https://github.com/absfs/basefs)
+The `basefs` filesystem takes a `absfs.FileSystem` and an absolute path within that filesystem, and provides a `absfs.FileSystem` interface that is rooted at that path. Relative paths are handled correctly such that it is not possible to 'escape' the base path constraint (for example by using a path like "/.."). In addition errors are rewritten to accurately obscure the base path. 
+
+### [HttpFS](https://github.com/absfs/httpfs)
+A filesystem that can convert a `absfs.FileSystem` to a `http.FileSystem` interface for use with `http.FileServer`.
+
+### [CorFS](https://github.com/absfs/corfs) (cache on read fs)
 An `absfs.Filer` that wraps two `absfs.Filer`s when data is read if it doesn't exist in the second tier filesytem the filer copies data from the underlying file systems into the second tier filesystem causing it to function like a cache. 
 
-### CowFS (copy on write fs)
+### [CowFS](https://github.com/absfs/cowfs) (copy on write fs)
 An `absfs.Filer` that wraps two `absfs.Filer`s the first of which may be a read only filesystem. Any attempt to modify or write data to a CowFS causes the Filer to write those changes to the secondary fs leaving the underlying filesystem unmodified.
 
-### BoltFS
+### [BoltFS](https://github.com/absfs/boltfs)
 An `absfs.Filer` that provides and absfs.Filer interface for the popular embeddable key/value store called bolt.
 
-### S3FS
+### [S3FS](https://github.com/absfs/s3fs)
 An `absfs.Filer` that provides and absfs. Filer interface to any S3 compatible object storage API.
 
-### SftpFS
+### [SftpFs](https://github.com/absfs/SftpFs)
 A filesystem which reads and writes securely between computers across networks using the SFTP interface.
 
 ---
 
 ## Implementing a FileSystem
 AbsFs compatible filesystems can and should be implemented in their own package and repo.
-You may want to start with NilFs, PassThroughFs, or OsFs as a template if you plan to implement all of the FileSystem interface methods. However, it is not necessary to implement all FileSystem methods on your custom FileSystem since you can use the ExtendFiler function to convert a Filer implementation to a full FileSystem implementation. This means you only need to implement the 7 Filer methods to get all AbsFs features.
+You may want to start with `nilfs`, `ptfs`, or `osfs` as a template. It is not necessary to implement all FileSystem methods on your custom FileSystem since you can use the `ExtendFiler` function to convert a Filer implementation to a full `FileSystem` implementation. 
 
-#### Step 1 - Implemented The 7 Filer interface methods
+#### Step 1 - Filer the minimum FileSystem interface
 These methods are `OpenFile`, `Mkdir`, `Remove`, `Stat`, `Chmod`, `Chtimes`, `Chown`
 
 ```go
@@ -207,10 +207,10 @@ func (fs *MyFiler) Chown(name string, uid, gid int) error  {
 
 ```
 
-Optionally you can also implement any of the FileSystem interface methods if you need custom behavior.  These methods will be called instead of the ExtendFiler added methods (more info on how this is done below). The FileSystem interface adds the following additional methods: `Separator`, `ListSeparator`, `Chdir`, `Getwd`, `TempDir`, `Open`, `Create`, `MkdirAll` , `RemoveAll`, `Truncate`.
+Optionally you can also implement any of the FileSystem interface methods if you need for performance or other reasons. The object returned by `ExtendFiler` only adds the missing methods `FileSystem` methods. The FileSystem interface adds the following additional methods: `Separator`, `ListSeparator`, `Chdir`, `Getwd`, `TempDir`, `Open`, `Create`, `MkdirAll` , `RemoveAll`, `Truncate`.
 
-#### Step 2 - Use ExtendFiler to create a complete FileSystem implementation from a Filer
-After optionally implementing any of the additional FileSystem methods create a `NewFS` function that uses ExtendFiler to add the missing methods. 
+#### Step 2 - Extend A Filer to make a FileSystem
+After implementing any of the additional FileSystem methods create a `NewFS` function that uses ExtendFiler to add the missing methods. 
 
 ```go
 package myfs
@@ -221,7 +221,7 @@ type MyFiler struct {
     // ...
 }
 
-// ...
+// MyFiler implements the absfs.Filer interface
 
 func NewFS() absfs.FileSystem {
     return absfs.ExtendFiler(&MyFiler{})
@@ -229,13 +229,15 @@ func NewFS() absfs.FileSystem {
 
 ```
 
-The implementation provided by ExtendFiler will first check for an existing method of the same signature on the underlying Filer.  If found it will simply call that method, and return the results, however if no method is found then a generic implementation is provided. If the FileSystem method is one of the convenience functions like `Open`, `Create`, or `MkdirAll` the default implementation simply uses the Filer methods (i.e. `OpenFile` and `Mkdir`) to implement the convenience function on top of the Filer interface.  If the missing methods is one of  `Separator`, `ListSeparator`, or `TempDir`, then the local operating system values are returned. Path navigation as provided by `Chdir`, and `Getwd` are provided as a complete path management implementation layered on top of the Filer so that the filer only needs to handle absolute paths. 
+The implementation provided by ExtendFiler will first check for an existing method of the same signature on the underlying Filer.  If found it will call that method, if not it provides a default implementation.
+
+An extended Filer implements the FileSystem interface as follows. If the FileSystem method is one of the convenience functions like `Open`, `Create`, or `MkdirAll` the default implementation simply uses the Filer methods (i.e. `OpenFile` and `Mkdir`) to implement the convenience function on top of the Filer interface.  If the missing methods is one of  `Separator`, `ListSeparator`, or `TempDir`, then the local operating system values are returned. Path navigation as provided by `Chdir`, and `Getwd` are provided as a complete path management implementation that resolves both absolute and relative paths much the say way as the `os` package. The extended filer will resolve paths into absolute paths and maintains a unique current working directory for each FileSystem interface object. A Filer is not required to implement relative paths.
 
 ## Contributing
 
-We strongly encourage contributions, please fork and submit Pull Requests.
+We strongly encourage contributions, please fork and submit Pull Requests, and publish any FileSystems you implement.
 
-New FileSystem types do not need to be added to this repo, but if they are good quality implementations of useful new FileSystems we will happily add a link and description to this Readme. 
+New FileSystem types do not need to be added to this repo, but we'd be happy to link to yours so please open an issue or better yet add a Pull Request with the updated Readme.
 
 ## LICENSE
 
