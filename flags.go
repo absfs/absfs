@@ -32,7 +32,7 @@ func (f Flags) String() string {
 	case O_RDWR:
 		out = append(out, "O_RDWR")
 	case O_WRONLY:
-		out = append(out, "O_RDWR")
+		out = append(out, "O_WRONLY")
 	}
 
 	names := []string{"O_APPEND", "O_CREATE", "O_EXCL", "O_SYNC", "O_TRUNC"}
