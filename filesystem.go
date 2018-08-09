@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -240,7 +241,19 @@ func (fs *fs) MkdirAll(name string, perm os.FileMode) error {
 		}
 	}
 
-	return ErrNotImplemented
+	path := string(fs.Separator())
+	for _, p := range strings.Split(name, string(fs.Separator())) {
+		if p == "" {
+			continue
+		}
+		path = filepath.Join(path, p)
+		if path == "/" {
+			continue
+		}
+		fs.Mkdir(path, perm)
+	}
+
+	return nil
 }
 
 func (fs *fs) removeAll(path string) (err error) {
