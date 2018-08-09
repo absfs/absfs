@@ -3,6 +3,7 @@ package absfs
 import (
 	"io"
 	"io/ioutil"
+	"syscall"
 
 	"os"
 )
@@ -109,58 +110,61 @@ func ExtendUnseekable(uf UnSeekable) (Seekable, error) {
 	return sb, nil
 }
 
-type InvalidFile struct{}
+type InvalidFile struct {
+	Path string
+}
 
 func (f *InvalidFile) Name() string {
-	return ""
+	return f.Path
 }
 
 func (f *InvalidFile) Read(p []byte) (int, error) {
-	return 0, os.ErrInvalid
+	return 0, &os.PathError{Op: "read", Path: f.Name(), Err: syscall.EBADF}
+	// return 0, io.EOF
 }
 
 func (f *InvalidFile) Write(p []byte) (int, error) {
-	return 0, os.ErrInvalid
+	return 0, &os.PathError{Op: "write", Path: f.Name(), Err: syscall.EBADF}
 }
 
 func (f *InvalidFile) Close() error {
-	return os.ErrInvalid
+	return nil
 }
 
 func (f *InvalidFile) Sync() error {
-	return os.ErrInvalid
+	return &os.PathError{Op: "sync", Path: f.Name(), Err: syscall.EBADF}
 }
 
 func (f *InvalidFile) Stat() (os.FileInfo, error) {
-	return nil, os.ErrInvalid
+	return nil, &os.PathError{Op: "stat", Path: f.Name(), Err: syscall.EBADF}
 }
 
 func (f *InvalidFile) Readdir(int) ([]os.FileInfo, error) {
-	return nil, os.ErrInvalid
+	return nil, &os.PathError{Op: "readdir", Path: f.Name(), Err: syscall.EBADF}
 }
 
 func (f *InvalidFile) Seek(offset int64, whence int) (ret int64, err error) {
-	return 0, os.ErrInvalid
+	return 0, &os.PathError{Op: "seek", Path: f.Name(), Err: syscall.EBADF}
 }
 
 func (f *InvalidFile) ReadAt(b []byte, off int64) (n int, err error) {
-	return 0, os.ErrInvalid
+	return 0, &os.PathError{Op: "read", Path: f.Name(), Err: syscall.EBADF}
 }
 
 func (f *InvalidFile) WriteAt(b []byte, off int64) (n int, err error) {
-	return 0, os.ErrInvalid
+	return 0, &os.PathError{Op: "write", Path: f.Name(), Err: syscall.EBADF}
 }
 
 func (f *InvalidFile) WriteString(s string) (n int, err error) {
-	return 0, os.ErrInvalid
+	return 0, &os.PathError{Op: "write", Path: f.Name(), Err: syscall.EBADF}
 }
 
 func (f *InvalidFile) Truncate(size int64) error {
-	return os.ErrInvalid
+	return &os.PathError{Op: "truncate", Path: f.Name(), Err: syscall.EBADF}
 }
 
 func (f *InvalidFile) Readdirnames(n int) (names []string, err error) {
-	return nil, os.ErrInvalid
+	return nil, &os.PathError{Op: "readdirnames", Path: f.Name(), Err: syscall.EBADF}
 }
 
 func ExtendSeekable(sf Seekable) File {
