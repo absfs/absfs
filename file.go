@@ -110,7 +110,12 @@ func ExtendUnseekable(uf UnSeekable) (Seekable, error) {
 	return sb, nil
 }
 
+// InvalidFile is a no-op implementation of File that can be returned from any
+// file open methods when an error occurs. InvalidFile mimics the behavior of
+// file handles returnd by the `os` package when there is an error.
 type InvalidFile struct {
+
+	// Path should be the filepath provided to the `Open` method.
 	Path string
 }
 

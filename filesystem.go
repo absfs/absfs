@@ -24,6 +24,12 @@ type Filer interface {
 	// happens.
 	Remove(name string) error
 
+	// Rename renames (moves) oldpath to newpath. If newpath already exists and
+	// is not a directory, Rename replaces it. OS-specific restrictions may apply
+	// when oldpath and newpath are in different directories. If there is an
+	// error, it will be of type *LinkError.
+	Rename(oldpath, newpath string) error
+
 	// Stat returns the FileInfo structure describing file. If there is an error,
 	// it will be of type *PathError.
 	Stat(name string) (os.FileInfo, error)
@@ -118,6 +124,21 @@ func (fs *fs) Remove(name string) error {
 		}
 	}
 	return fs.filer.Remove(name)
+}
+
+func (fs *fs) Rename(oldpath, newpath string) error {
+	if !filepath.IsAbs(oldpath) {
+		if _, ok := fs.filer.(dirnavigator); !ok {
+			oldpath = filepath.Clean(filepath.Join(fs.cwd, oldpath))
+		}
+	}
+	if !filepath.IsAbs(newpath) {
+		if _, ok := fs.filer.(dirnavigator); !ok {
+			newpath = filepath.Clean(filepath.Join(fs.cwd, newpath))
+		}
+	}
+
+	return fs.filer.Rename(oldpath, newpath)
 }
 
 func (fs *fs) Stat(name string) (os.FileInfo, error) {
@@ -343,6 +364,8 @@ func (fs *fs) Truncate(name string, size int64) error {
 	}
 	return f.Close()
 }
+
+type FastWalkFunc func(string, os.FileMode) error
 
 // interfaces for easy method typing
 
