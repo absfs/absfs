@@ -11,6 +11,14 @@ import (
 
 var ErrNotImplemented = errors.New("not implemented")
 
+type ReadOnlyFiler interface {
+	Open(name string) (io.ReadCloser, error)
+}
+
+type WriteOnlyFiler interface {
+	Open(name string) (io.WriteCloser, error)
+}
+
 type Filer interface {
 
 	// OpenFile opens a file using the given flags and the given mode.
