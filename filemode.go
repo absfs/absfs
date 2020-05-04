@@ -1,77 +1,81 @@
 package absfs
 
 import (
-	"errors"
+	"fmt"
 	"os"
 	"strings"
 )
 
+// ParseFileMode - parses a unix style file mode string and returns an
+// `os.FileMode` and an error.
 func ParseFileMode(input string) (os.FileMode, error) {
 	var mode os.FileMode
 
 	if len(input) < 10 {
-		return 0, errors.New("unable to parse file mode string too short")
-	}
-	input = strings.ToLower(input)
-	switch input[0] {
-	case '-':
-	case 'd':
-		mode |= os.ModeDir // d: is a directory
-	case 'a':
-		mode |= os.ModeAppend // a: append-only
-	case 'l':
-		mode |= os.ModeExclusive // l: exclusive use
-	case 'T':
-		mode |= os.ModeTemporary // T: temporary file; Plan 9 only
-	case 'L':
-		mode |= os.ModeSymlink // L: symbolic link
-	case 'D':
-		mode |= os.ModeDevice // D: device file
-	case 'p':
-		mode |= os.ModeNamedPipe // p: named pipe (FIFO)
-	case 'S':
-		mode |= os.ModeSocket // S: Unix domain socket
-	case 'u':
-		mode |= os.ModeSetuid // u: setuid
-	case 'g':
-		mode |= os.ModeSetgid // g: setgid
-	case 'c':
-		mode |= os.ModeCharDevice // c: Unix character device, when ModeDevice is set
-	case 't':
-		mode |= os.ModeSticky // t: sticky
+		return 0, fmt.Errorf("unable to parse file mode string too short length == %d", len(input))
 	}
 
-	if input[1] == 'r' {
-		mode |= OS_USER_R
+	switch string(input[:1]) {
+	case "-":
+	case "d":
+		mode = os.ModeDir // d: is a directory
+	case "a":
+		mode = os.ModeAppend // a: append-only
+	case "l":
+		mode = os.ModeExclusive // l: exclusive use
+	case "T":
+		mode = os.ModeTemporary // T: temporary file; Plan 9 only
+	case "L":
+		mode = os.ModeSymlink // L: symbolic link
+	case "D":
+		mode = os.ModeDevice // D: device file
+	case "p":
+		mode = os.ModeNamedPipe // p: named pipe (FIFO)
+	case "S":
+		mode = os.ModeSocket // S: Unix domain socket
+	case "u":
+		mode = os.ModeSetuid // u: setuid
+	case "g":
+		mode = os.ModeSetgid // g: setgid
+	case "c":
+		mode = os.ModeCharDevice // c: Unix character device, when ModeDevice is set
+	case "t":
+		mode = os.ModeSticky // t: sticky
+	default:
+		return 0, fmt.Errorf("unable to parse file mode string unrecognized character %q", input[:1])
 	}
-	if input[2] == 'w' {
-		mode |= OS_USER_W
+
+	permissions := [][2]int{
+		// user permissions
+		{'r', OS_USER_R},
+		{'w', OS_USER_W},
+		{'x', OS_USER_X},
+
+		// group permissions
+		{'r', OS_GROUP_R},
+		{'w', OS_GROUP_W},
+		{'x', OS_GROUP_X},
+
+		// others permissions
+		{'r', OS_OTH_R},
+		{'w', OS_OTH_W},
+		{'x', OS_OTH_X},
 	}
-	if input[3] == 'x' {
-		mode |= OS_USER_X
-	}
-	if input[4] == 'r' {
-		mode |= OS_GROUP_R
-	}
-	if input[5] == 'w' {
-		mode |= OS_GROUP_W
-	}
-	if input[6] == 'x' {
-		mode |= OS_GROUP_X
-	}
-	if input[7] == 'r' {
-		mode |= OS_OTH_R
-	}
-	if input[8] == 'w' {
-		mode |= OS_OTH_W
-	}
-	if input[9] == 'x' {
-		mode |= OS_OTH_X
+
+	for i, c := range strings.ToLower(input[1:]) {
+		if c == '-' {
+			continue
+		}
+		if int(c) != permissions[i][0] {
+			return 0, fmt.Errorf("unable to parse file mode string unrecognized character %q at %d.", string(input[i+1]), i+1)
+		}
+		mode |= os.FileMode(permissions[i][1])
 	}
 
 	return mode, nil
 }
 
+// Permission flags not provided by the standard library.
 const (
 	OS_READ        = 04
 	OS_WRITE       = 02

@@ -2,12 +2,12 @@ package absfs
 
 import (
 	"io"
-	"io/ioutil"
-	"syscall"
-
 	"os"
 )
 
+// UnSeekable - is an interface for file handles that can perform reads and/or
+// writes but cannot perform seek operations. An UnSeekable is also
+// an io.ReadWriteCloser.
 type UnSeekable interface {
 
 	// Name returns the name of the file as presented to Open.
@@ -15,35 +15,33 @@ type UnSeekable interface {
 
 	// Read reads up to len(b) bytes from the File. It returns the number of bytes
 	// read and any error encountered. At end of file, Read returns 0, io.EOF.
-	Read(p []byte) (int, error)
+	Read(b []byte) (int, error)
 
 	// Write writes len(b) bytes to the File. It returns the number of bytes
 	// written and an error, if any. Write returns a non-nil error when
 	// n != len(b).
-	Write(p []byte) (int, error)
+	Write(b []byte) (int, error)
 
-	// Close closes the File, rendering it unusable for I/O. It returns an error,
+	// Close - closes the File, rendering it unusable for I/O. It returns an error,
 	// if any.
 	Close() error
 
-	// Sync commits the current contents of the file to stable storage. Typically,
-	// this means flushing the file system's in-memory copy of recently written
-	// data to disk.
+	// Sync - commits the current contents of the file to stable storage.
 	Sync() error
 
-	// Stat returns the FileInfo structure describing file. If there is an error,
-	// it will be of type *PathError.
+	// Stat - returns the FileInfo structure describing file. If there is an
+	// error, it should be of type `*os.PathError`.
 	Stat() (os.FileInfo, error)
 
-	// Readdir reads the contents of the directory associated with file and
-	// returns a slice of up to n FileInfo values, as would be returned by Lstat,
-	// in directory order. Subsequent calls on the same file will yield further
-	// FileInfos.
-
+	// Readdir - reads the contents of the directory associated with file and
+	// returns a slice of up to n `os.FileInfo` values, as would be returned by
+	// Stat or Lstat in directory order. Subsequent calls on the same file will
+	// yield further `os.FileInfos`.
+	//
 	// If n > 0, Readdir returns at most n FileInfo structures. In this case, if
 	// Readdir returns an empty slice, it will return a non-nil error explaining
 	// why. At the end of a directory, the error is io.EOF.
-
+	//
 	// If n <= 0, Readdir returns all the FileInfo from the directory in a single
 	// slice. In this case, if Readdir succeeds (reads all the way to the end of
 	// the directory), it returns the slice and a nil error. If it encounters an
@@ -52,17 +50,19 @@ type UnSeekable interface {
 	Readdir(int) ([]os.FileInfo, error)
 }
 
+// Seekable - is an interface for file handles that can perform reads and/or
+// writes and can seek to specific locations within a file. A Seekable is also
+// an io.ReadWriteCloser, and an io.Seeker.
 type Seekable interface {
 	UnSeekable
-
-	// Seek sets the offset for the next Read or Write on file to offset,
-	// interpreted according to whence: 0 means relative to the origin of the
-	// file, 1 means relative to the current offset, and 2 means relative to the
-	// end. It returns the new offset and an error, if any. The behavior of Seek
-	// on a file opened with O_APPEND is not specified.
-	Seek(offset int64, whence int) (ret int64, err error)
+	io.Seeker
 }
 
+// File - is an interface for file handles that supports the most common
+// file operations. Filesystem interfaces in this package have functions
+// that return values of type `File`, but be aware that some implementations may
+// only support a subset of these functions given the limitations particular
+// file systems.
 type File interface {
 	Seekable
 
@@ -81,14 +81,18 @@ type File interface {
 	// a slice of bytes.
 	WriteString(s string) (n int, err error)
 
-	// Truncate changes the size of the file. It does not change the I/O offset.
-	// If there is an error, it will be of type *PathError.
+	// Truncate - changes the size of the file. It does not change the I/O offset.
+	// If there is an error, it should be of type `*os.PathError`.
 	Truncate(size int64) error
 
+	// Readdirnames - reads the contents of the directory associated with file and
+	// returns a slice of up to n names. Subsequent calls on the same
+	// file will yield further names.
+	//
 	// If n > 0, Readdirnames returns at most n names. In this case, if
 	// Readdirnames returns an empty slice, it will return a non-nil error
 	// explaining why. At the end of a directory, the error is io.EOF.
-
+	//
 	// If n <= 0, Readdirnames returns all the names from the directory in a single
 	// slice. In this case, if Readdirnames succeeds (reads all the way to the end of
 	// the directory), it returns the slice and a nil error. If it encounters an
@@ -97,282 +101,20 @@ type File interface {
 	Readdirnames(n int) (names []string, err error)
 }
 
-func ExtendUnseekable(uf UnSeekable) (Seekable, error) {
-	data, err := ioutil.ReadAll(uf)
-	if err != nil {
-		return nil, err
-	}
-	sb := &seekbuffer{
-		data:   data,
-		offset: 0,
-		uf:     uf,
-	}
-	return sb, nil
-}
-
-// InvalidFile is a no-op implementation of File that can be returned from any
-// file open methods when an error occurs. InvalidFile mimics the behavior of
-// file handles returnd by the `os` package when there is an error.
-type InvalidFile struct {
-
-	// Path should be the filepath provided to the `Open` method.
-	Path string
-}
-
-func (f *InvalidFile) Name() string {
-	return f.Path
-}
-
-func (f *InvalidFile) Read(p []byte) (int, error) {
-	return 0, &os.PathError{Op: "read", Path: f.Name(), Err: syscall.EBADF}
-	// return 0, io.EOF
-}
-
-func (f *InvalidFile) Write(p []byte) (int, error) {
-	return 0, &os.PathError{Op: "write", Path: f.Name(), Err: syscall.EBADF}
-}
-
-func (f *InvalidFile) Close() error {
-	return nil
-}
-
-func (f *InvalidFile) Sync() error {
-	return &os.PathError{Op: "sync", Path: f.Name(), Err: syscall.EBADF}
-}
-
-func (f *InvalidFile) Stat() (os.FileInfo, error) {
-	return nil, &os.PathError{Op: "stat", Path: f.Name(), Err: syscall.EBADF}
-}
-
-func (f *InvalidFile) Readdir(int) ([]os.FileInfo, error) {
-	return nil, &os.PathError{Op: "readdir", Path: f.Name(), Err: syscall.EBADF}
-}
-
-func (f *InvalidFile) Seek(offset int64, whence int) (ret int64, err error) {
-	return 0, &os.PathError{Op: "seek", Path: f.Name(), Err: syscall.EBADF}
-}
-
-func (f *InvalidFile) ReadAt(b []byte, off int64) (n int, err error) {
-	return 0, &os.PathError{Op: "read", Path: f.Name(), Err: syscall.EBADF}
-}
-
-func (f *InvalidFile) WriteAt(b []byte, off int64) (n int, err error) {
-	return 0, &os.PathError{Op: "write", Path: f.Name(), Err: syscall.EBADF}
-}
-
-func (f *InvalidFile) WriteString(s string) (n int, err error) {
-	return 0, &os.PathError{Op: "write", Path: f.Name(), Err: syscall.EBADF}
-}
-
-func (f *InvalidFile) Truncate(size int64) error {
-	return &os.PathError{Op: "truncate", Path: f.Name(), Err: syscall.EBADF}
-}
-
-func (f *InvalidFile) Readdirnames(n int) (names []string, err error) {
-	return nil, &os.PathError{Op: "readdirnames", Path: f.Name(), Err: syscall.EBADF}
-}
-
+// ExtendSeekable - extends a `Seekable` interface implementation to a File
+// interface implementation. First type assertion is used to check if the
+// argument already supports the `File` interface.
+//
+// If the argument's native type is not recognized, and cannot be type asserted
+// to an implementation of `File` `ExtendSeekable` wraps the argument in a type
+// that implements the additional `File` functions using only the functions
+// in the `Seekable` interface. Functions that are identical between `File` and
+// `Seekable` are passed through unaltered. This should would fine, but may have
+// have performance implications.
 func ExtendSeekable(sf Seekable) File {
-	return &file{sf}
-}
-
-type seekbuffer struct {
-	data   []byte
-	offset int64
-	uf     UnSeekable
-}
-
-func (sb *seekbuffer) Name() string {
-	return sb.uf.Name()
-}
-
-func (sb *seekbuffer) Read(p []byte) (int, error) {
-	if sb.offset >= int64(len(sb.data)) {
-		return 0, io.EOF
-	}
-	n := copy(p, sb.data[sb.offset:])
-	sb.offset += int64(n)
-	return n, nil
-}
-
-func (sb *seekbuffer) Write(p []byte) (int, error) {
-	if int64(len(p))+sb.offset > int64(len(sb.data)) {
-		data := make([]byte, int(int64(len(p))+sb.offset))
-		copy(data, sb.data)
-		sb.data = data
-	}
-	n := copy(sb.data[int(sb.offset):], p)
-	return n, nil
-}
-
-func (sb *seekbuffer) Close() error {
-	err := sb.Sync()
-	if err != nil {
-		return err
+	if f, ok := sf.(File); ok {
+		return f
 	}
 
-	return sb.uf.Close()
-}
-
-func (sb *seekbuffer) Sync() error {
-	n, err := sb.uf.Write(sb.data)
-	if n != len(sb.data) {
-		panic("something went wrong")
-		return err
-	}
-
-	return sb.uf.Sync()
-}
-
-func (sb *seekbuffer) Stat() (os.FileInfo, error) {
-	return sb.uf.Stat()
-}
-
-func (sb *seekbuffer) Readdir(n int) ([]os.FileInfo, error) {
-	return sb.uf.Readdir(n)
-}
-
-func (sb *seekbuffer) Seek(offset int64, whence int) (ret int64, err error) {
-	switch whence {
-	case io.SeekStart:
-		sb.offset = offset
-	case io.SeekCurrent:
-		sb.offset += offset
-	case io.SeekEnd:
-		sb.offset = int64(len(sb.data)) + offset
-	}
-	return sb.offset, nil
-}
-
-type file struct {
-	sf Seekable
-}
-
-func (f *file) Name() string {
-	return f.sf.Name()
-}
-
-func (f *file) Read(p []byte) (int, error) {
-	return f.sf.Read(p)
-}
-
-func (f *file) Readdir(n int) ([]os.FileInfo, error) {
-	return f.sf.Readdir(n)
-}
-
-// func (f *file) Readdir(n int) ([]os.FileInfo, error) {
-// 	return f.sf.Readdir(n)
-// }
-
-func (f *file) Sync() error {
-	return f.sf.Sync()
-}
-
-func (f *file) Stat() (os.FileInfo, error) {
-	return f.sf.Stat()
-}
-
-func (f *file) Seek(offset int64, whence int) (ret int64, err error) {
-	return f.sf.Seek(offset, whence)
-}
-
-func (f *file) ReadAt(b []byte, off int64) (n int, err error) {
-	if file, ok := f.sf.(ater); ok {
-		return file.ReadAt(b, off)
-	}
-	_, err = f.sf.Seek(off, io.SeekStart)
-	if err != nil {
-		return 0, err
-	}
-	return f.sf.Read(b)
-}
-
-func (f *file) Write(p []byte) (int, error) {
-	return f.sf.Write(p)
-}
-
-func (f *file) WriteAt(b []byte, off int64) (n int, err error) {
-	if file, ok := f.sf.(ater); ok {
-		return file.WriteAt(b, off)
-	}
-	_, err = f.sf.Seek(off, io.SeekStart)
-	if err != nil {
-		return 0, err
-	}
-	return f.sf.Write(b)
-}
-
-func (f *file) WriteString(s string) (n int, err error) {
-	if file, ok := f.sf.(stringwriter); ok {
-		return file.WriteString(s)
-	}
-
-	return f.sf.Write([]byte(s))
-}
-
-func (f *file) Truncate(size int64) error {
-	if ff, ok := f.sf.(filetruncater); ok {
-		return ff.Truncate(size)
-	}
-
-	_, err := f.sf.Seek(0, io.SeekStart)
-	if err != nil {
-		return err
-	}
-
-	bufsize := 512
-	buf := make([]byte, 512)
-	for i := 0; int64(i) < int64(size); i += 512 {
-		if size-int64(i) < 512 {
-			bufsize = int(size - int64(i))
-		}
-
-		_, err = f.sf.Write(buf[:bufsize])
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (f *file) Readdirnames(n int) (names []string, err error) {
-	if file, ok := f.sf.(dirnamer); ok {
-		return file.Readdirnames(n)
-	}
-	var infos []os.FileInfo
-	infos, err = f.sf.Readdir(n)
-	if err != nil {
-		return nil, err
-	}
-
-	names = make([]string, len(infos))
-
-	for i, info := range infos {
-		names[i] = info.Name()
-	}
-
-	return names, nil
-}
-
-func (f *file) Close() error {
-	return nil
-}
-
-// interfaces for easy method typing
-
-type ater interface {
-	ReadAt(b []byte, off int64) (n int, err error)
-	WriteAt(b []byte, off int64) (n int, err error)
-}
-
-type stringwriter interface {
-	WriteString(s string) (n int, err error)
-}
-
-type filetruncater interface {
-	Truncate(size int64) error
-}
-
-type dirnamer interface {
-	Readdirnames(n int) (names []string, err error)
+	return &fileadapter{sf}
 }
