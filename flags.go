@@ -7,19 +7,19 @@ import (
 )
 
 const (
-	O_ACCESS = Flags(0x3) // masks the access mode (O_RDONLY, O_WRONLY, or O_RDWR)
+	O_ACCESS = 0x3 // masks the access mode (O_RDONLY, O_WRONLY, or O_RDWR)
 
 	// Exactly one of O_RDONLY, O_WRONLY, or O_RDWR must be specified.
-	O_RDONLY = Flags(os.O_RDONLY) // open the file read-only.
-	O_WRONLY = Flags(os.O_WRONLY) // open the file write-only.
-	O_RDWR   = Flags(os.O_RDWR)   // open the file read-write.
+	O_RDONLY = os.O_RDONLY // open the file read-only.
+	O_WRONLY = os.O_WRONLY // open the file write-only.
+	O_RDWR   = os.O_RDWR   // open the file read-write.
 
 	// The remaining values may be or'ed in to control behavior.
-	O_APPEND = Flags(os.O_APPEND) // append data to the file when writing.
-	O_CREATE = Flags(os.O_CREATE) // create a new file if none exists.
-	O_EXCL   = Flags(os.O_EXCL)   // used with O_CREATE, file must not exist.
-	O_SYNC   = Flags(os.O_SYNC)   // open for synchronous I/O.
-	O_TRUNC  = Flags(os.O_TRUNC)  // if possible, truncate file when opened.
+	O_APPEND = os.O_APPEND // append data to the file when writing.
+	O_CREATE = os.O_CREATE // create a new file if none exists.
+	O_EXCL   = os.O_EXCL   // used with O_CREATE, file must not exist.
+	O_SYNC   = os.O_SYNC   // open for synchronous I/O.
+	O_TRUNC  = os.O_TRUNC  // if possible, truncate file when opened.
 )
 
 // Flags - represents access and permission flags for use with file opening
@@ -30,7 +30,7 @@ type Flags int
 func (f Flags) String() string {
 	var out []string
 	// flags := int(f)
-	switch f & O_ACCESS {
+	switch int(f) & O_ACCESS {
 	case O_RDONLY:
 		out = append(out, "O_RDONLY")
 	case O_RDWR:
@@ -40,7 +40,7 @@ func (f Flags) String() string {
 	}
 
 	names := []string{"O_APPEND", "O_CREATE", "O_EXCL", "O_SYNC", "O_TRUNC"}
-	for i, flag := range []Flags{O_APPEND, O_CREATE, O_EXCL, O_SYNC, O_TRUNC} {
+	for i, flag := range []Flags{Flags(O_APPEND), Flags(O_CREATE), Flags(O_EXCL), Flags(O_SYNC), Flags(O_TRUNC)} {
 		if (flag & f) != 0 {
 			out = append(out, names[i])
 		}
@@ -82,19 +82,19 @@ func ParseFlags(input string) (Flags, error) {
 			acc = v
 			continue
 		case "O_APPEND":
-			out |= O_APPEND
+			out |= Flags(O_APPEND)
 			continue
 		case "O_CREATE":
-			out |= O_CREATE
+			out |= Flags(O_CREATE)
 			continue
 		case "O_EXCL":
-			out |= O_EXCL
+			out |= Flags(O_EXCL)
 			continue
 		case "O_SYNC":
-			out |= O_SYNC
+			out |= Flags(O_SYNC)
 			continue
 		case "O_TRUNC":
-			out |= O_TRUNC
+			out |= Flags(O_TRUNC)
 			continue
 		default:
 			return 0, fmt.Errorf("error parsing flags, unrecognized flag %q", v)
@@ -104,9 +104,9 @@ func ParseFlags(input string) (Flags, error) {
 	switch acc {
 	case "O_RDONLY":
 	case "O_RDWR":
-		out |= O_RDWR
+		out |= Flags(O_RDWR)
 	case "O_WRONLY":
-		out |= O_WRONLY
+		out |= Flags(O_WRONLY)
 	}
 	return out, nil
 }

@@ -13,14 +13,14 @@ type testType struct {
 func TestFlags(t *testing.T) {
 	var a []testType
 	flagStrings := []string{"O_APPEND", "O_CREATE", "O_EXCL", "O_SYNC", "O_TRUNC"}
-	for i, flag := range []Flags{O_APPEND, O_CREATE, O_EXCL, O_SYNC, O_TRUNC} {
+	for i, flag := range []Flags{Flags(O_APPEND), Flags(O_CREATE), Flags(O_EXCL), Flags(O_SYNC), Flags(O_TRUNC)} {
 		a = append(a, testType{flag, flagStrings[i]})
 	}
 	combinations := combinationsOf(a)
 
 	c := 0
 	modeStrings := []string{"O_RDONLY", "O_WRONLY", "O_RDWR"}
-	for i, acc := range []Flags{O_RDONLY, O_WRONLY, O_RDWR} {
+	for i, acc := range []Flags{Flags(O_RDONLY), Flags(O_WRONLY), Flags(O_RDWR)} {
 		for _, test := range combinations {
 			flags := Flags(acc) | test.In
 			exp := modeStrings[i]
