@@ -2,7 +2,6 @@ package absfs_test
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/absfs/absfs"
 )
