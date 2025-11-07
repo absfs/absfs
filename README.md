@@ -3,7 +3,6 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/absfs/absfs.svg)](https://pkg.go.dev/github.com/absfs/absfs)
 [![Go Report Card](https://goreportcard.com/badge/github.com/absfs/absfs)](https://goreportcard.com/report/github.com/absfs/absfs)
 [![Tests](https://github.com/absfs/absfs/workflows/Tests/badge.svg)](https://github.com/absfs/absfs/actions)
-[![Coverage](https://codecov.io/gh/absfs/absfs/branch/main/graph/badge.svg)](https://codecov.io/gh/absfs/absfs)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 `absfs` is a go package that defines an abstract filesystem interface.
