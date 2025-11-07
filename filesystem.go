@@ -285,62 +285,63 @@ func (fs *fs) MkdirAll(name string, perm os.FileMode) error {
 	return nil
 }
 
-func (fs *fs) removeAll(path string) (err error) {
-	// open the file
-	var f File
-	f, err = fs.Open(path) // .filer.Open(path)
+func (fs *fs) removeAll(path string) error {
+	// open the file to check if it's a directory
+	f, err := fs.Open(path)
 	if err != nil {
 		return err
 	}
-
-	// defer close with error checking, and remove the file after closing.
-	defer func() {
-		if err != nil {
-			f.Close()
-			// return err
-		}
-		closer := f.Close()
-		err = fs.filer.Remove(path)
-		if err == nil {
-			err = closer
-		}
-		// return err
-		return
-	}()
 
 	// get FileInfo
 	info, err := f.Stat()
+	closeErr := f.Close()
 	if err != nil {
 		return err
 	}
 
-	// if it's not a directory remove it and return
+	// if it's not a directory, just remove it
 	if !info.IsDir() {
 		return fs.Remove(path)
 	}
 
-	// get and loop through each directory entry calling remove all recursively.
-	err = nil
-	var names []string
-	for err != io.EOF {
-		names, err = f.Readdirnames(512)
-		if err != nil && len(names) == 0 {
-			if err != io.EOF {
-				return err
-			}
-		}
+	// For directories, we need to recursively remove contents
+	// Reopen to read directory entries
+	f, err = fs.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	// Read all directory entries and remove them recursively
+	for {
+		names, err := f.Readdirnames(512)
 		for _, name := range names {
 			if name == "." || name == ".." {
 				continue
 			}
-			err := fs.removeAll(filepath.Join(path, name))
-			if err != nil {
+			if err := fs.removeAll(filepath.Join(path, name)); err != nil {
 				return err
 			}
 		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
 	}
 
-	return nil
+	// Close the directory before removing it
+	if err := f.Close(); err != nil && closeErr == nil {
+		closeErr = err
+	}
+
+	// Finally, remove the directory itself
+	if err := fs.filer.Remove(path); err != nil {
+		return err
+	}
+
+	return closeErr
 }
 
 func (fs *fs) RemoveAll(name string) (err error) {
