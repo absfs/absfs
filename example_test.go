@@ -188,8 +188,8 @@ func ExampleFile_ReadAt() {
 	// Output: Read at offset
 }
 
-// Example permission constants usage
-func ExampleOS_ALL_RWX() {
+// Example_permissionConstants demonstrates using permission constants
+func Example_permissionConstants() {
 	// Use permission constants for clarity
 	// fs.Mkdir("/public", absfs.OS_ALL_RWX) // 0777
 	// fs.Mkdir("/private", absfs.OS_USER_RWX) // 0700
