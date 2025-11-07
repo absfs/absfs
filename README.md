@@ -1,12 +1,25 @@
 # absfs - Abstract File System for go
+
+[![Go Reference](https://pkg.go.dev/badge/github.com/absfs/absfs.svg)](https://pkg.go.dev/github.com/absfs/absfs)
+[![Go Report Card](https://goreportcard.com/badge/github.com/absfs/absfs)](https://goreportcard.com/report/github.com/absfs/absfs)
+[![Tests](https://github.com/absfs/absfs/workflows/Tests/badge.svg)](https://github.com/absfs/absfs/actions)
+[![Coverage](https://codecov.io/gh/absfs/absfs/branch/main/graph/badge.svg)](https://codecov.io/gh/absfs/absfs)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 `absfs` is a go package that defines an abstract filesystem interface.
 
 The design goal of absfs is to support a system of composable filesystem implementations for various uses from testing to complex storage management.
 
-Implementors can create stand alone filesystems that implement the abfs.Filer interface providing new components that can easily be add to existing compositions, and data pipelines.
+Implementors can create stand alone filesystems that implement the `absfs.Filer` interface providing new components that can easily be added to existing compositions and data pipelines.
 
-absfs will provide a testing suite to help implementers produce packages that function and error consistently with all other abstract filesystems implementations. 
+## Features
 
+- 📦 **Composable** - Layer filesystems for complex behaviors
+- 🧪 **Testable** - Mock filesystems for unit testing
+- 🔧 **Extensible** - Easy to implement new filesystem types
+- 🚀 **Performant** - Minimal overhead wrapper pattern
+- 📚 **Well-documented** - Comprehensive docs and examples
+- ✅ **Well-tested** - 89% code coverage
 
 ## Install 
 
@@ -231,7 +244,52 @@ func NewFS() absfs.FileSystem {
 
 The implementation provided by ExtendFiler will first check for an existing method of the same signature on the underlying Filer.  If found it will call that method, if not it provides a default implementation.
 
-An extended Filer implements the FileSystem interface as follows. If the FileSystem method is one of the convenience functions like `Open`, `Create`, or `MkdirAll` the default implementation simply uses the Filer methods (i.e. `OpenFile` and `Mkdir`) to implement the convenience function on top of the Filer interface.  If the missing methods is one of  `Separator`, `ListSeparator`, or `TempDir`, then the local operating system values are returned. Path navigation as provided by `Chdir`, and `Getwd` are provided as a complete path management implementation that resolves both absolute and relative paths much the say way as the `os` package. The extended filer will resolve paths into absolute paths and maintains a unique current working directory for each FileSystem interface object. A Filer is not required to implement relative paths.
+An extended Filer implements the FileSystem interface as follows. If the FileSystem method is one of the convenience functions like `Open`, `Create`, or `MkdirAll` the default implementation simply uses the Filer methods (i.e. `OpenFile` and `Mkdir`) to implement the convenience function on top of the Filer interface.  If the missing methods is one of  `Separator`, `ListSeparator`, or `TempDir`, then the local operating system values are returned. Path navigation as provided by `Chdir`, and `Getwd` are provided as a complete path management implementation that resolves both absolute and relative paths much the same way as the `os` package. The extended filer will resolve paths into absolute paths and maintains a unique current working directory for each FileSystem interface object. A Filer is not required to implement relative paths.
+
+## Thread Safety
+
+⚠️ **FileSystem instances are NOT goroutine-safe by default.**
+
+Each `FileSystem` object created by `ExtendFiler` maintains its own current working directory (`cwd`) state, which can be modified by `Chdir`. Concurrent access from multiple goroutines can cause race conditions.
+
+### Safe Usage Patterns
+
+1. **One FileSystem per goroutine** (Recommended)
+   ```go
+   func worker(id int) {
+       fs := absfs.ExtendFiler(filer) // Each goroutine gets its own instance
+       fs.Chdir(fmt.Sprintf("/worker%d", id))
+       // ... do work ...
+   }
+   ```
+
+2. **Use absolute paths only**
+   ```go
+   // Shared filesystem is safe if you only use absolute paths
+   sharedFS := absfs.ExtendFiler(filer)
+   // Safe: no dependency on cwd
+   sharedFS.Open("/absolute/path/to/file.txt")
+   ```
+
+3. **External synchronization**
+   ```go
+   var mu sync.Mutex
+   sharedFS := absfs.ExtendFiler(filer)
+
+   mu.Lock()
+   sharedFS.Chdir("/some/directory")
+   file, _ := sharedFS.Open("relative/file.txt")
+   mu.Unlock()
+   ```
+
+See [SECURITY.md](SECURITY.md) for more details.
+
+## Documentation
+
+- [Architecture Guide](ARCHITECTURE.md) - Design patterns and internals
+- [Security Policy](SECURITY.md) - Security considerations and best practices
+- [Changelog](CHANGELOG.md) - Version history and changes
+- [GoDoc](https://pkg.go.dev/github.com/absfs/absfs) - API documentation
 
 ## Contributing
 
