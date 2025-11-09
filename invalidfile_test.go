@@ -2,6 +2,7 @@ package absfs
 
 import (
 	"os"
+	"path/filepath"
 	"syscall"
 	"testing"
 )
@@ -10,8 +11,8 @@ func TestInvalidFile(t *testing.T) {
 	f := &InvalidFile{Path: "/test/file.txt"}
 
 	t.Run("Name", func(t *testing.T) {
-		if f.Name() != "/test/file.txt" {
-			t.Errorf("expected /test/file.txt, got %s", f.Name())
+		if f.Name() != filepath.Clean("/test/file.txt") {
+			t.Errorf("expected %s, got %s", filepath.Clean("/test/file.txt"), f.Name())
 		}
 	})
 

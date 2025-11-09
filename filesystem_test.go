@@ -292,8 +292,8 @@ func TestFileSystemCreate(t *testing.T) {
 	}
 	defer f.Close()
 
-	if f.Name() != "/test.txt" {
-		t.Errorf("expected name /test.txt, got %s", f.Name())
+	if f.Name() != filepath.Clean("/test.txt") {
+		t.Errorf("expected name %s, got %s", filepath.Clean("/test.txt"), f.Name())
 	}
 }
 
@@ -312,8 +312,8 @@ func TestFileSystemOpen(t *testing.T) {
 	}
 	defer f.Close()
 
-	if f.Name() != "/test.txt" {
-		t.Errorf("expected name /test.txt, got %s", f.Name())
+	if f.Name() != filepath.Clean("/test.txt") {
+		t.Errorf("expected name %s, got %s", filepath.Clean("/test.txt"), f.Name())
 	}
 }
 
@@ -481,8 +481,8 @@ func TestFileSystemChdir(t *testing.T) {
 		t.Fatalf("Getwd failed: %v", err)
 	}
 
-	if cwd != "/testdir" {
-		t.Errorf("expected cwd /testdir, got %s", cwd)
+	if cwd != filepath.Clean("/testdir") {
+		t.Errorf("expected cwd %s, got %s", filepath.Clean("/testdir"), cwd)
 	}
 }
 
@@ -507,8 +507,8 @@ func TestFileSystemGetwd(t *testing.T) {
 		t.Fatalf("Getwd failed: %v", err)
 	}
 
-	if cwd != "/" {
-		t.Errorf("expected initial cwd /, got %s", cwd)
+	if cwd != filepath.Clean("/") {
+		t.Errorf("expected initial cwd %s, got %s", filepath.Clean("/"), cwd)
 	}
 }
 

@@ -17,7 +17,7 @@ type mockFilerWithOptionals struct {
 func newMockFilerWithOptionals() *mockFilerWithOptionals {
 	return &mockFilerWithOptionals{
 		mockFiler: newMockFiler(),
-		cwd:       "/",
+		cwd:       filepath.Clean("/"),
 	}
 }
 
@@ -51,7 +51,7 @@ func (m *mockFilerWithOptionals) ListSeparator() uint8 {
 
 // Implement optional temper interface
 func (m *mockFilerWithOptionals) TempDir() string {
-	return "/tmp"
+	return filepath.Clean("/tmp")
 }
 
 // Implement optional opener interface
@@ -68,7 +68,8 @@ func (m *mockFilerWithOptionals) Create(name string) (File, error) {
 func (m *mockFilerWithOptionals) MkdirAll(name string, perm os.FileMode) error {
 	name = filepath.Clean(name)
 	parts := []string{}
-	for name != "/" && name != "." {
+	root := filepath.Clean("/")
+	for name != root && name != "." {
 		parts = append([]string{name}, parts...)
 		name = filepath.Dir(name)
 	}
@@ -128,8 +129,8 @@ func TestFileSystemWithOptionalInterfaces(t *testing.T) {
 
 	t.Run("TempDir", func(t *testing.T) {
 		tmpDir := fs.TempDir()
-		if tmpDir != "/tmp" {
-			t.Errorf("expected '/tmp', got %s", tmpDir)
+		if tmpDir != filepath.Clean("/tmp") {
+			t.Errorf("expected '%s', got %s", filepath.Clean("/tmp"), tmpDir)
 		}
 	})
 
@@ -143,8 +144,8 @@ func TestFileSystemWithOptionalInterfaces(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Getwd failed: %v", err)
 		}
-		if cwd != "/testdir" {
-			t.Errorf("expected '/testdir', got %s", cwd)
+		if cwd != filepath.Clean("/testdir") {
+			t.Errorf("expected '%s', got %s", filepath.Clean("/testdir"), cwd)
 		}
 	})
 
@@ -216,8 +217,8 @@ func TestFileSystemRelativePathsWithDirNavigator(t *testing.T) {
 	// The ExtendFiler wrapper should pass through to the underlying
 	// dirnavigator when it implements that interface
 	cwd, _ := fs.Getwd()
-	if cwd != "/home/user" {
-		t.Errorf("expected '/home/user', got %s", cwd)
+	if cwd != filepath.Clean("/home/user") {
+		t.Errorf("expected '%s', got %s", filepath.Clean("/home/user"), cwd)
 	}
 }
 
