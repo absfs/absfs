@@ -107,8 +107,22 @@ type fs struct {
 	filer Filer
 }
 
+// isVirtualAbs checks if a path should be treated as absolute in the virtual filesystem.
+// On Unix, this matches filepath.IsAbs. On Windows, we also treat paths starting with
+// '/' or '\' as absolute, even though they're not OS-absolute (lack drive letter).
+func isVirtualAbs(path string) bool {
+	if filepath.IsAbs(path) {
+		return true
+	}
+	// Treat paths starting with separator as absolute in virtual filesystem
+	if len(path) > 0 && (path[0] == '/' || path[0] == '\\') {
+		return true
+	}
+	return false
+}
+
 func (fs *fs) OpenFile(name string, flag int, perm os.FileMode) (f File, err error) {
-	if !filepath.IsAbs(name) {
+	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
 			name = filepath.Clean(filepath.Join(fs.cwd, name))
 		}
@@ -117,7 +131,7 @@ func (fs *fs) OpenFile(name string, flag int, perm os.FileMode) (f File, err err
 }
 
 func (fs *fs) Mkdir(name string, perm os.FileMode) error {
-	if !filepath.IsAbs(name) {
+	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
 			name = filepath.Clean(filepath.Join(fs.cwd, name))
 		}
@@ -126,7 +140,7 @@ func (fs *fs) Mkdir(name string, perm os.FileMode) error {
 }
 
 func (fs *fs) Remove(name string) error {
-	if !filepath.IsAbs(name) {
+	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
 			name = filepath.Clean(filepath.Join(fs.cwd, name))
 		}
@@ -135,12 +149,12 @@ func (fs *fs) Remove(name string) error {
 }
 
 func (fs *fs) Rename(oldpath, newpath string) error {
-	if !filepath.IsAbs(oldpath) {
+	if !isVirtualAbs(oldpath) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
 			oldpath = filepath.Clean(filepath.Join(fs.cwd, oldpath))
 		}
 	}
-	if !filepath.IsAbs(newpath) {
+	if !isVirtualAbs(newpath) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
 			newpath = filepath.Clean(filepath.Join(fs.cwd, newpath))
 		}
@@ -150,7 +164,7 @@ func (fs *fs) Rename(oldpath, newpath string) error {
 }
 
 func (fs *fs) Stat(name string) (os.FileInfo, error) {
-	if !filepath.IsAbs(name) {
+	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
 			name = filepath.Clean(filepath.Join(fs.cwd, name))
 		}
@@ -159,7 +173,7 @@ func (fs *fs) Stat(name string) (os.FileInfo, error) {
 }
 
 func (fs *fs) Chmod(name string, mode os.FileMode) error {
-	if !filepath.IsAbs(name) {
+	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
 			name = filepath.Clean(filepath.Join(fs.cwd, name))
 		}
@@ -168,7 +182,7 @@ func (fs *fs) Chmod(name string, mode os.FileMode) error {
 }
 
 func (fs *fs) Chtimes(name string, atime time.Time, mtime time.Time) error {
-	if !filepath.IsAbs(name) {
+	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
 			name = filepath.Clean(filepath.Join(fs.cwd, name))
 		}
@@ -178,7 +192,7 @@ func (fs *fs) Chtimes(name string, atime time.Time, mtime time.Time) error {
 }
 
 func (fs *fs) Chown(name string, uid, gid int) error {
-	if !filepath.IsAbs(name) {
+	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
 			name = filepath.Clean(filepath.Join(fs.cwd, name))
 		}
@@ -240,7 +254,7 @@ func (fs *fs) Open(name string) (File, error) {
 	if filer, ok := fs.filer.(opener); ok {
 		return filer.Open(name)
 	}
-	if !filepath.IsAbs(name) {
+	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
 			name = filepath.Clean(filepath.Join(fs.cwd, name))
 		}
@@ -252,7 +266,7 @@ func (fs *fs) Create(name string) (File, error) {
 	if filer, ok := fs.filer.(creator); ok {
 		return filer.Create(name)
 	}
-	if !filepath.IsAbs(name) {
+	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
 			name = filepath.Clean(filepath.Join(fs.cwd, name))
 		}
@@ -264,7 +278,7 @@ func (fs *fs) MkdirAll(name string, perm os.FileMode) error {
 	if filer, ok := fs.filer.(mkaller); ok {
 		return filer.MkdirAll(name, perm)
 	}
-	if !filepath.IsAbs(name) {
+	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
 			name = filepath.Clean(filepath.Join(fs.cwd, name))
 		}
@@ -349,7 +363,7 @@ func (fs *fs) RemoveAll(name string) (err error) {
 	if filer, ok := fs.filer.(remover); ok {
 		return filer.RemoveAll(name)
 	}
-	if !filepath.IsAbs(name) {
+	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
 			name = filepath.Clean(filepath.Join(fs.cwd, name))
 		}
@@ -361,7 +375,7 @@ func (fs *fs) Truncate(name string, size int64) error {
 	if filer, ok := fs.filer.(truncater); ok {
 		return filer.Truncate(name, size)
 	}
-	if !filepath.IsAbs(name) {
+	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
 			name = filepath.Clean(filepath.Join(fs.cwd, name))
 		}
