@@ -17,7 +17,7 @@ type mockFilerWithOptionals struct {
 func newMockFilerWithOptionals() *mockFilerWithOptionals {
 	return &mockFilerWithOptionals{
 		mockFiler: newMockFiler(),
-		cwd:       filepath.Clean("/"),
+		cwd:       string(filepath.Separator),
 	}
 }
 
@@ -68,7 +68,7 @@ func (m *mockFilerWithOptionals) Create(name string) (File, error) {
 func (m *mockFilerWithOptionals) MkdirAll(name string, perm os.FileMode) error {
 	name = filepath.Clean(name)
 	parts := []string{}
-	root := filepath.Clean("/")
+	root := string(filepath.Separator)
 	for name != root && name != "." {
 		parts = append([]string{name}, parts...)
 		name = filepath.Dir(name)

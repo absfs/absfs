@@ -349,8 +349,8 @@ func TestExtendFilerCoverage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Getwd failed: %v", err)
 	}
-	if cwd != filepath.Clean("/") {
-		t.Errorf("expected initial cwd '%s', got '%s'", filepath.Clean("/"), cwd)
+	if cwd != string(filepath.Separator) {
+		t.Errorf("expected initial cwd '%s', got '%s'", string(filepath.Separator), cwd)
 	}
 }
 

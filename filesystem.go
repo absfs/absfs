@@ -99,7 +99,7 @@ type SymlinkFileSystem interface {
 
 // ExtendFiler adds the FileSystem convenience functions to any Filer implementation.
 func ExtendFiler(filer Filer) FileSystem {
-	return &fs{filepath.Clean("/"), filer}
+	return &fs{string(filepath.Separator), filer}
 }
 
 type fs struct {
@@ -276,7 +276,7 @@ func (fs *fs) MkdirAll(name string, perm os.FileMode) error {
 			continue
 		}
 		path = filepath.Join(path, p)
-		if path == filepath.Clean("/") {
+		if path == string(filepath.Separator) {
 			continue
 		}
 		fs.Mkdir(path, perm)
