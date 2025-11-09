@@ -19,6 +19,7 @@ Implementors can create stand alone filesystems that implement the `absfs.Filer`
 - 🚀 **Performant** - Minimal overhead wrapper pattern
 - 📚 **Well-documented** - Comprehensive docs and examples
 - ✅ **Well-tested** - 89% code coverage
+- 🌍 **Cross-platform** - Unix-style paths work on Windows, macOS, and Linux
 
 ## Install 
 
@@ -283,8 +284,24 @@ Each `FileSystem` object created by `ExtendFiler` maintains its own current work
 
 See [SECURITY.md](SECURITY.md) for more details.
 
+## Path Handling
+
+The `absfs` package provides consistent path semantics across all platforms. Paths starting with `/` or `\` are treated as **virtual absolute paths**, allowing Unix-style paths to work on Windows while maintaining support for OS-native paths.
+
+```go
+// These work identically on Unix, macOS, AND Windows:
+fs := absfs.ExtendFiler(virtualFS)
+fs.Create("/config/app.json")
+fs.MkdirAll("/var/log/app", 0755)
+```
+
+**Important for Windows users**: Paths like `/config/file.txt` are treated as virtual-absolute for portability. For true OS operations on Windows, use drive letters (`C:\path`) or UNC paths (`\\server\share`).
+
+See [PATH_HANDLING.md](PATH_HANDLING.md) for comprehensive cross-platform path behavior documentation.
+
 ## Documentation
 
+- [Path Handling Guide](PATH_HANDLING.md) - Cross-platform path semantics
 - [Architecture Guide](ARCHITECTURE.md) - Design patterns and internals
 - [Security Policy](SECURITY.md) - Security considerations and best practices
 - [Changelog](CHANGELOG.md) - Version history and changes
