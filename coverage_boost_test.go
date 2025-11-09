@@ -3,6 +3,7 @@ package absfs
 import (
 	"io"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -348,8 +349,8 @@ func TestExtendFilerCoverage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Getwd failed: %v", err)
 	}
-	if cwd != "/" {
-		t.Errorf("expected initial cwd '/', got '%s'", cwd)
+	if cwd != filepath.Clean("/") {
+		t.Errorf("expected initial cwd '%s', got '%s'", filepath.Clean("/"), cwd)
 	}
 }
 
