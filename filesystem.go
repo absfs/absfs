@@ -98,6 +98,26 @@ type SymlinkFileSystem interface {
 }
 
 // ExtendFiler adds the FileSystem convenience functions to any Filer implementation.
+//
+// Path Semantics:
+//
+// The returned FileSystem treats paths starting with '/' or '\' as absolute within
+// the virtual filesystem, even on Windows where these aren't truly OS-absolute
+// (which require drive letters like "C:\"). This design enables virtual filesystems
+// (mocks, in-memory, archives) to use Unix-style paths consistently across all
+// platforms while still supporting true OS-absolute paths.
+//
+// Examples:
+//   - "/config/app.json"       → virtual-absolute on all platforms
+//   - "C:\Windows\file.txt"    → OS-absolute on Windows (also virtual-absolute)
+//   - "\\server\share\file"    → OS-absolute UNC on Windows (also virtual-absolute)
+//   - "relative/path"          → relative on all platforms
+//
+// For most use cases with virtual filesystems, simply use Unix-style absolute
+// paths ("/path/to/file") and they will work correctly across all platforms.
+// For OS filesystem wrappers, use platform-native paths for best results.
+//
+// See PATH_HANDLING.md for detailed cross-platform behavior documentation.
 func ExtendFiler(filer Filer) FileSystem {
 	return &fs{string(filepath.Separator), filer}
 }
