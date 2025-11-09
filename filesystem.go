@@ -304,6 +304,10 @@ func (fs *fs) MkdirAll(name string, perm os.FileMode) error {
 		}
 	}
 
+	// Normalize path separators to platform-specific separator before splitting
+	// This ensures /a/b/c works correctly on Windows (converts to \a\b\c)
+	name = filepath.Clean(name)
+
 	path := string(fs.Separator())
 	for _, p := range strings.Split(name, string(fs.Separator())) {
 		if p == "" {
