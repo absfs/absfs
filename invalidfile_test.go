@@ -8,7 +8,7 @@ import (
 )
 
 func TestInvalidFile(t *testing.T) {
-	f := &InvalidFile{Path: "/test/file.txt"}
+	f := &InvalidFile{Path: filepath.Clean("/test/file.txt")}
 
 	t.Run("Name", func(t *testing.T) {
 		if f.Name() != filepath.Clean("/test/file.txt") {
