@@ -440,9 +440,48 @@ fs.MkdirAll("/var/log/app", 0755)
 fs.Open("/data/users.db")
 ```
 
+### Cross-Platform OS Filesystem Setup
+
+When working with the OS filesystem (osfs) across platforms, use build tags for automatic Windows drive mapping:
+
+**Create `filesystem_windows.go`:**
+```go
+//go:build windows
+
+package yourapp
+
+import "github.com/absfs/osfs"
+
+func NewFS(drive string) absfs.FileSystem {
+    if drive == "" { drive = "C:" }
+    return osfs.NewWindowsDriveMapper(osfs.NewFS(), drive)
+}
+```
+
+**Create `filesystem_unix.go`:**
+```go
+//go:build !windows
+
+package yourapp
+
+import "github.com/absfs/osfs"
+
+func NewFS(drive string) absfs.FileSystem {
+    return osfs.NewFS()  // Drive ignored on Unix
+}
+```
+
+**Use it everywhere:**
+```go
+fs := yourapp.NewFS("")
+fs.Create("/config/app.json")  // Works on all platforms!
+```
+
+See [PATH_HANDLING.md](PATH_HANDLING.md) for complete details and the [cross-platform example](examples/cross-platform/).
+
 ### Platform-Specific Paths
 
-You can also use OS-native path formats:
+You can also use OS-native path formats directly:
 
 ```go
 // Unix/macOS
