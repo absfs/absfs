@@ -82,8 +82,14 @@ func FuzzPathClean(f *testing.F) {
 		}
 
 		// Property 5: Result should not have trailing separator unless it's root
+		// On Windows, UNC paths like "\\\\" are valid roots and can have multiple separators
 		if len(cleaned) > 1 && cleaned[len(cleaned)-1] == filepath.Separator {
-			t.Errorf("has trailing separator: %q → %q", path, cleaned)
+			// Check if this is a valid root path
+			isRoot := cleaned == string(filepath.Separator) ||
+				(len(cleaned) >= 2 && cleaned[0] == '\\' && cleaned[1] == '\\' && strings.TrimRight(cleaned, string(filepath.Separator)) == "")
+			if !isRoot {
+				t.Errorf("has trailing separator: %q → %q", path, cleaned)
+			}
 		}
 
 		// Property 6: No double separators in result
