@@ -61,18 +61,7 @@ The `OS_ALL_RWX` constant was incorrectly defined as `OS_ALL_RW | OS_GROUP_X` in
 When committing code or creating filesystems:
 - Never commit files with secrets (.env, credentials.json, etc.)
 - Use .gitignore to exclude sensitive files
-- Implementations should not log file contents
-
-## Security Best Practices for Implementers
-
-If you're implementing the `Filer` interface:
-
-1. **Validate all paths** - Use `filepath.Clean` to normalize paths
-2. **Prevent escaping base directories** - Especially important for BaseFS implementations
-3. **Handle permissions correctly** - Use the provided permission constants
-4. **Fail securely** - Return appropriate errors rather than allowing operations
-5. **Document thread safety** - Clearly state if your implementation is goroutine-safe
-6. **Avoid information leakage** - Error messages should not reveal system internals
+- Filesystem implementations should not log file contents
 
 ## Known Limitations
 

@@ -171,30 +171,6 @@ func TestFileOperations(t *testing.T) {
 }
 ```
 
-## Implementation Details
-
-The `isVirtualAbs()` helper determines if a path should be treated as absolute:
-
-```go
-func isVirtualAbs(path string) bool {
-    // Check OS-absolute first (handles C:\, \\server\share on Windows)
-    if filepath.IsAbs(path) {
-        return true
-    }
-    // Treat paths starting with separator as virtual-absolute
-    if len(path) > 0 && (path[0] == '/' || path[0] == '\\') {
-        return true
-    }
-    return false
-}
-```
-
-This ensures:
-- ✅ Unix absolute paths work everywhere
-- ✅ Windows drive letters work on Windows
-- ✅ Windows UNC paths work on Windows
-- ✅ Virtual filesystems use consistent paths across platforms
-
 ## Summary
 
 - **Virtual filesystems**: Use Unix-style paths (`/path/to/file`) for portability
