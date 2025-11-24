@@ -181,6 +181,33 @@ See the [User Guide](USER_GUIDE.md) for comprehensive documentation on using abs
 - Thread safety patterns
 - Composition and testing strategies
 
+### Cross-Platform OS Filesystem Pattern
+
+For applications using the OS filesystem across Windows, macOS, and Linux, use this simple pattern:
+
+```go
+// filesystem_windows.go
+//go:build windows
+func NewFS(drive string) absfs.FileSystem {
+    if drive == "" { drive = "C:" }
+    return osfs.NewWindowsDriveMapper(osfs.NewFS(), drive)
+}
+
+// filesystem_unix.go
+//go:build !windows
+func NewFS(drive string) absfs.FileSystem {
+    return osfs.NewFS()
+}
+```
+
+Then use Unix-style paths everywhere:
+```go
+fs := NewFS("")
+fs.Create("/config/app.json")  // Works on all platforms!
+```
+
+See [PATH_HANDLING.md](PATH_HANDLING.md) and [examples/cross-platform](examples/cross-platform/) for details.
+
 ## Implementing a Custom Filesystem
 
 Want to create your own filesystem implementation? See the [Implementer Guide](IMPLEMENTER_GUIDE.md) for complete instructions on implementing the `Filer` interface, including:
