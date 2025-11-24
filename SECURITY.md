@@ -1,5 +1,11 @@
 # Security Policy
 
+**Audience**: All users and implementers - security considerations and vulnerability reporting.
+
+For implementation-specific security practices, see the [Implementer Guide](IMPLEMENTER_GUIDE.md#security-best-practices).
+
+---
+
 ## Supported Versions
 
 | Version | Supported          |

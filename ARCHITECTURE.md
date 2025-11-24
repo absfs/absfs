@@ -1,5 +1,11 @@
 # absfs Architecture
 
+**Audience**: Developers interested in understanding absfs internal design, patterns, and architectural decisions.
+
+This document explains the internal implementation details and design rationale behind absfs. If you're looking to use absfs, see the [User Guide](USER_GUIDE.md). If you're implementing a filesystem, see the [Implementer Guide](IMPLEMENTER_GUIDE.md).
+
+---
+
 ## Design Philosophy
 
 absfs is designed around the principle of **composability**. Rather than providing a single monolithic filesystem implementation, absfs defines interfaces that allow different filesystem implementations to be composed together to create complex storage solutions.
