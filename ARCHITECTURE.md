@@ -86,8 +86,8 @@ The `fs` struct:
 
 ```go
 func (fs *fs) OpenFile(name string, flag int, perm os.FileMode) (File, error) {
-    // Check if path is relative
-    if !filepath.IsAbs(name) {
+    // Check if path is relative (handles both OS-absolute and virtual-absolute paths)
+    if !isAbsolutePath(name) {
         // Check if filer implements directory navigation
         if _, ok := fs.filer.(dirnavigator); !ok {
             // Convert to absolute using cwd

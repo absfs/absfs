@@ -42,10 +42,10 @@ The minimum set of methods that an implementation must define.
 type Filer interface {
 
     Mkdir(name string, perm os.FileMode) error
-    OpenFile(name string, flag int, perm os.FileMode) File, error
+    OpenFile(name string, flag int, perm os.FileMode) (File, error)
     Remove(name string) error
     Rename(oldname, newname string) error
-    Stat(name string) os.FileInfo, error
+    Stat(name string) (os.FileInfo, error)
     Chmod(name string, mode os.FileMode) error
     Chtimes(name string, atime time.Time, mtime time.Time) error
 
@@ -62,6 +62,7 @@ type FileSystem interface {
     OpenFile(name string, flag int, perm os.FileMode) (File, error)
     Mkdir(name string, perm os.FileMode) error
     Remove(name string) error
+    Rename(oldpath, newpath string) error
     Stat(name string) (os.FileInfo, error)
     Chmod(name string, mode os.FileMode) error
     Chtimes(name string, atime time.Time, mtime time.Time) error
@@ -87,7 +88,7 @@ Additional methods for implementing symbolic links.
 ```go
 type SymLinker interface {
 
-    Lstat(fi1, fi2 os.FileInfo) bool
+    Lstat(name string) (os.FileInfo, error)
     Lchown(name string, uid, gid int) error
     Readlink(name string) (string, error)
     Symlink(oldname, newname string) error
@@ -123,7 +124,7 @@ type SymlinkFileSystem interface {
     Truncate(name string, size int64) error
 
     // SymLinker interface
-    Lstat(fi1, fi2 os.FileInfo) bool
+    Lstat(name string) (os.FileInfo, error)
     Lchown(name string, uid, gid int) error
     Readlink(name string) (string, error)
     Symlink(oldname, newname string) error
@@ -177,7 +178,7 @@ AbsFs compatible filesystems can and should be implemented in their own package 
 You may want to start with `nilfs`, `ptfs`, or `osfs` as a template. It is not necessary to implement all FileSystem methods on your custom FileSystem since you can use the `ExtendFiler` function to convert a Filer implementation to a full `FileSystem` implementation. 
 
 #### Step 1 - Filer the minimum FileSystem interface
-These methods are `OpenFile`, `Mkdir`, `Remove`, `Stat`, `Chmod`, `Chtimes`, `Chown`
+These methods are `OpenFile`, `Mkdir`, `Remove`, `Rename`, `Stat`, `Chmod`, `Chtimes`, `Chown`
 
 ```go
 // template for a Filer implementation
