@@ -173,79 +173,21 @@ A filesystem which reads and writes securely between computers across networks u
 
 ---
 
-## Implementing a FileSystem
-AbsFs compatible filesystems can and should be implemented in their own package and repo.
-You may want to start with `nilfs`, `ptfs`, or `osfs` as a template. It is not necessary to implement all FileSystem methods on your custom FileSystem since you can use the `ExtendFiler` function to convert a Filer implementation to a full `FileSystem` implementation. 
+## Using absfs
 
-#### Step 1 - Filer the minimum FileSystem interface
-These methods are `OpenFile`, `Mkdir`, `Remove`, `Rename`, `Stat`, `Chmod`, `Chtimes`, `Chown`
+See the [User Guide](USER_GUIDE.md) for comprehensive documentation on using absfs in your applications, including:
+- Working with files and directories
+- Path handling across platforms
+- Thread safety patterns
+- Composition and testing strategies
 
-```go
-// template for a Filer implementation
-type MyFiler struct {
-    // ... 
-}
+## Implementing a Custom Filesystem
 
-func New() *MyFiler {
-    return &MyFiler{}
-}
-
-func (fs *MyFiler) OpenFile(name string, flag int, perm os.FileMode) (File, error) {
-    // ...
-}
-
-func (fs *MyFiler) Mkdir(name string, perm os.FileMode) error  {
-    // ...
-}
-
-func (fs *MyFiler) Remove(name string) error  {
-    // ...
-}
-
-func (fs *MyFiler) Stat(name string) (os.FileInfo, error)  {
-    // ...
-}
-
-func (fs *MyFiler) Chmod(name string, mode os.FileMode) error  {
-    // ...
-}
-
-func (fs *MyFiler) Chtimes(name string, atime time.Time, mtime time.Time) error  {
-    // ...
-}
-
-func (fs *MyFiler) Chown(name string, uid, gid int) error  {
-    // ...
-}
-
-
-```
-
-Optionally you can also implement any of the FileSystem interface methods if you need for performance or other reasons. The object returned by `ExtendFiler` only adds the missing methods `FileSystem` methods. The FileSystem interface adds the following additional methods: `Separator`, `ListSeparator`, `Chdir`, `Getwd`, `TempDir`, `Open`, `Create`, `MkdirAll` , `RemoveAll`, `Truncate`.
-
-#### Step 2 - Extend A Filer to make a FileSystem
-After implementing any of the additional FileSystem methods create a `NewFS` function that uses ExtendFiler to add the missing methods. 
-
-```go
-package myfs
-
-import "github.com/absfs/absfs"
-
-type MyFiler struct {
-    // ...
-}
-
-// MyFiler implements the absfs.Filer interface
-
-func NewFS() absfs.FileSystem {
-    return absfs.ExtendFiler(&MyFiler{})
-}
-
-```
-
-The implementation provided by ExtendFiler will first check for an existing method of the same signature on the underlying Filer.  If found it will call that method, if not it provides a default implementation.
-
-An extended Filer implements the FileSystem interface as follows. If the FileSystem method is one of the convenience functions like `Open`, `Create`, or `MkdirAll` the default implementation simply uses the Filer methods (i.e. `OpenFile` and `Mkdir`) to implement the convenience function on top of the Filer interface.  If the missing methods is one of  `Separator`, `ListSeparator`, or `TempDir`, then the local operating system values are returned. Path navigation as provided by `Chdir`, and `Getwd` are provided as a complete path management implementation that resolves both absolute and relative paths much the same way as the `os` package. The extended filer will resolve paths into absolute paths and maintains a unique current working directory for each FileSystem interface object. A Filer is not required to implement relative paths.
+Want to create your own filesystem implementation? See the [Implementer Guide](IMPLEMENTER_GUIDE.md) for complete instructions on implementing the `Filer` interface, including:
+- Method-by-method requirements
+- Security best practices
+- Testing strategies
+- Performance considerations
 
 ## Thread Safety
 
@@ -302,11 +244,18 @@ See [PATH_HANDLING.md](PATH_HANDLING.md) for comprehensive cross-platform path b
 
 ## Documentation
 
+### User Documentation
+- [User Guide](USER_GUIDE.md) - Complete guide to using absfs in your applications
 - [Path Handling Guide](PATH_HANDLING.md) - Cross-platform path semantics
-- [Architecture Guide](ARCHITECTURE.md) - Design patterns and internals
 - [Security Policy](SECURITY.md) - Security considerations and best practices
-- [Changelog](CHANGELOG.md) - Version history and changes
+
+### Developer Documentation
+- [Implementer Guide](IMPLEMENTER_GUIDE.md) - How to create custom filesystem implementations
+- [Architecture Guide](ARCHITECTURE.md) - Design decisions and internal architecture
+
+### Reference
 - [GoDoc](https://pkg.go.dev/github.com/absfs/absfs) - API documentation
+- [Changelog](CHANGELOG.md) - Version history and changes
 
 ## Contributing
 
