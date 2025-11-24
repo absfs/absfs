@@ -209,27 +209,6 @@ Tests use mock Filers to verify the wrapper logic works correctly:
   3. External synchronization
   4. Implement thread-safe wrapper
 
-## Extension Points
-
-To create a new filesystem:
-
-1. **Implement Filer** (8 methods minimum)
-2. **Optionally implement optional interfaces** for optimization
-3. **Use ExtendFiler** to get full FileSystem
-4. **Document thread safety** and limitations
-
-Example:
-```go
-type MyFS struct { /* ... */ }
-
-func (m *MyFS) OpenFile(...) { /* ... */ }
-// ... implement other Filer methods ...
-
-func NewMyFS() absfs.FileSystem {
-    return absfs.ExtendFiler(&MyFS{})
-}
-```
-
 ## Future Considerations
 
 - Context support for cancellation
