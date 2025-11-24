@@ -144,11 +144,11 @@ func (w *WindowsDriveMapper) Chdir(dir string) error {
 
 // Pass-through methods (no path translation needed)
 
-func (w *WindowsDriveMapper) Separator() rune {
+func (w *WindowsDriveMapper) Separator() uint8 {
 	return w.base.Separator()
 }
 
-func (w *WindowsDriveMapper) ListSeparator() rune {
+func (w *WindowsDriveMapper) ListSeparator() uint8 {
 	return w.base.ListSeparator()
 }
 
