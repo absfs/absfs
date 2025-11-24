@@ -1,8 +1,14 @@
 # Path Handling in absfs
 
-## Overview
+**Audience**: All users of absfs - covers cross-platform path semantics and best practices.
 
 The `absfs` package provides a **virtual filesystem abstraction** that works consistently across platforms (Unix, macOS, Windows). Understanding how paths are interpreted is crucial for writing portable code.
+
+For complete usage examples, see the [User Guide](USER_GUIDE.md). For implementation guidance, see the [Implementer Guide](IMPLEMENTER_GUIDE.md).
+
+---
+
+## Overview
 
 ## Path Semantics
 
