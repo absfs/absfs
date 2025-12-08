@@ -4,7 +4,7 @@ import (
 	"errors"
 	"io"
 	"os"
-	"path/filepath"
+	"path"
 	"strings"
 	"time"
 )
@@ -101,25 +101,21 @@ type SymlinkFileSystem interface {
 //
 // Path Semantics:
 //
-// The returned FileSystem treats paths starting with '/' or '\' as absolute within
-// the virtual filesystem, even on Windows where these aren't truly OS-absolute
-// (which require drive letters like "C:\"). This design enables virtual filesystems
-// (mocks, in-memory, archives) to use Unix-style paths consistently across all
-// platforms while still supporting true OS-absolute paths.
+// All absfs filesystems use Unix-style forward slash paths ("/") on all platforms.
+// This design enables virtual filesystems (mocks, in-memory, archives) to work
+// consistently across all platforms and compose seamlessly with each other.
 //
 // Examples:
-//   - "/config/app.json"       → virtual-absolute on all platforms
-//   - "C:\Windows\file.txt"    → OS-absolute on Windows (also virtual-absolute)
-//   - "\\server\share\file"    → OS-absolute UNC on Windows (also virtual-absolute)
+//   - "/config/app.json"       → absolute path on all platforms
+//   - "/home/user/data"        → absolute path on all platforms
 //   - "relative/path"          → relative on all platforms
 //
-// For most use cases with virtual filesystems, simply use Unix-style absolute
-// paths ("/path/to/file") and they will work correctly across all platforms.
-// For OS filesystem wrappers, use platform-native paths for best results.
+// For OS filesystem wrappers (like osfs), use the osfs.ToNative() and
+// osfs.FromNative() helpers to convert between absfs paths and native OS paths.
 //
 // See PATH_HANDLING.md for detailed cross-platform behavior documentation.
 func ExtendFiler(filer Filer) FileSystem {
-	return &fs{string(filepath.Separator), filer}
+	return &fs{"/", filer}
 }
 
 type fs struct {
@@ -128,23 +124,15 @@ type fs struct {
 }
 
 // isVirtualAbs checks if a path should be treated as absolute in the virtual filesystem.
-// On Unix, this matches filepath.IsAbs. On Windows, we also treat paths starting with
-// '/' or '\' as absolute, even though they're not OS-absolute (lack drive letter).
-func isVirtualAbs(path string) bool {
-	if filepath.IsAbs(path) {
-		return true
-	}
-	// Treat paths starting with separator as absolute in virtual filesystem
-	if len(path) > 0 && (path[0] == '/' || path[0] == '\\') {
-		return true
-	}
-	return false
+// For virtual filesystems, paths starting with '/' are absolute.
+func isVirtualAbs(p string) bool {
+	return path.IsAbs(p)
 }
 
 func (fs *fs) OpenFile(name string, flag int, perm os.FileMode) (f File, err error) {
 	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
-			name = filepath.Clean(filepath.Join(fs.cwd, name))
+			name = path.Join(fs.cwd, name)
 		}
 	}
 	return fs.filer.OpenFile(name, flag, perm)
@@ -153,7 +141,7 @@ func (fs *fs) OpenFile(name string, flag int, perm os.FileMode) (f File, err err
 func (fs *fs) Mkdir(name string, perm os.FileMode) error {
 	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
-			name = filepath.Clean(filepath.Join(fs.cwd, name))
+			name = path.Join(fs.cwd, name)
 		}
 	}
 	return fs.filer.Mkdir(name, perm)
@@ -162,7 +150,7 @@ func (fs *fs) Mkdir(name string, perm os.FileMode) error {
 func (fs *fs) Remove(name string) error {
 	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
-			name = filepath.Clean(filepath.Join(fs.cwd, name))
+			name = path.Join(fs.cwd, name)
 		}
 	}
 	return fs.filer.Remove(name)
@@ -171,12 +159,12 @@ func (fs *fs) Remove(name string) error {
 func (fs *fs) Rename(oldpath, newpath string) error {
 	if !isVirtualAbs(oldpath) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
-			oldpath = filepath.Clean(filepath.Join(fs.cwd, oldpath))
+			oldpath = path.Join(fs.cwd, oldpath)
 		}
 	}
 	if !isVirtualAbs(newpath) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
-			newpath = filepath.Clean(filepath.Join(fs.cwd, newpath))
+			newpath = path.Join(fs.cwd, newpath)
 		}
 	}
 
@@ -186,7 +174,7 @@ func (fs *fs) Rename(oldpath, newpath string) error {
 func (fs *fs) Stat(name string) (os.FileInfo, error) {
 	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
-			name = filepath.Clean(filepath.Join(fs.cwd, name))
+			name = path.Join(fs.cwd, name)
 		}
 	}
 	return fs.filer.Stat(name)
@@ -195,7 +183,7 @@ func (fs *fs) Stat(name string) (os.FileInfo, error) {
 func (fs *fs) Chmod(name string, mode os.FileMode) error {
 	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
-			name = filepath.Clean(filepath.Join(fs.cwd, name))
+			name = path.Join(fs.cwd, name)
 		}
 	}
 	return fs.filer.Chmod(name, mode)
@@ -204,7 +192,7 @@ func (fs *fs) Chmod(name string, mode os.FileMode) error {
 func (fs *fs) Chtimes(name string, atime time.Time, mtime time.Time) error {
 	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
-			name = filepath.Clean(filepath.Join(fs.cwd, name))
+			name = path.Join(fs.cwd, name)
 		}
 	}
 
@@ -214,24 +202,28 @@ func (fs *fs) Chtimes(name string, atime time.Time, mtime time.Time) error {
 func (fs *fs) Chown(name string, uid, gid int) error {
 	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
-			name = filepath.Clean(filepath.Join(fs.cwd, name))
+			name = path.Join(fs.cwd, name)
 		}
 	}
 	return fs.filer.Chown(name, uid, gid)
 }
 
+// Separator returns the path separator for virtual filesystems.
+// This is always '/' (forward slash) regardless of the host OS.
 func (fs *fs) Separator() uint8 {
 	if filer, ok := fs.filer.(separator); ok {
 		return filer.Separator()
 	}
-	return filepath.Separator
+	return '/'
 }
 
+// ListSeparator returns the path list separator for virtual filesystems.
+// This is always ':' (colon) regardless of the host OS.
 func (fs *fs) ListSeparator() uint8 {
 	if filer, ok := fs.filer.(listseparator); ok {
 		return filer.ListSeparator()
 	}
-	return filepath.ListSeparator
+	return ':'
 }
 
 func (fs *fs) Chdir(dir string) error {
@@ -251,7 +243,7 @@ func (fs *fs) Chdir(dir string) error {
 	if !info.IsDir() {
 		return &os.PathError{Op: "chdir", Path: dir, Err: errors.New("not a directory")}
 	}
-	fs.cwd = filepath.Clean(dir)
+	fs.cwd = path.Clean(dir)
 	return nil
 }
 
@@ -267,7 +259,7 @@ func (fs *fs) TempDir() string {
 		return filer.TempDir()
 	}
 
-	return os.TempDir()
+	return "/tmp"
 }
 
 func (fs *fs) Open(name string) (File, error) {
@@ -276,7 +268,7 @@ func (fs *fs) Open(name string) (File, error) {
 	}
 	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
-			name = filepath.Clean(filepath.Join(fs.cwd, name))
+			name = path.Join(fs.cwd, name)
 		}
 	}
 	return fs.filer.OpenFile(name, os.O_RDONLY, 0)
@@ -288,7 +280,7 @@ func (fs *fs) Create(name string) (File, error) {
 	}
 	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
-			name = filepath.Clean(filepath.Join(fs.cwd, name))
+			name = path.Join(fs.cwd, name)
 		}
 	}
 	return fs.filer.OpenFile(name, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0666)
@@ -300,32 +292,32 @@ func (fs *fs) MkdirAll(name string, perm os.FileMode) error {
 	}
 	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
-			name = filepath.Clean(filepath.Join(fs.cwd, name))
+			name = path.Join(fs.cwd, name)
 		}
 	}
 
-	// Normalize path separators to platform-specific separator before splitting
-	// This ensures /a/b/c works correctly on Windows (converts to \a\b\c)
-	name = filepath.Clean(name)
+	// Clean the path using Unix-style path cleaning
+	name = path.Clean(name)
 
-	path := string(fs.Separator())
-	for _, p := range strings.Split(name, string(fs.Separator())) {
-		if p == "" {
+	// Build directories one at a time
+	p := "/"
+	for _, component := range strings.Split(name, "/") {
+		if component == "" {
 			continue
 		}
-		path = filepath.Join(path, p)
-		if path == string(filepath.Separator) {
+		p = path.Join(p, component)
+		if p == "/" {
 			continue
 		}
-		fs.Mkdir(path, perm)
+		fs.Mkdir(p, perm)
 	}
 
 	return nil
 }
 
-func (fs *fs) removeAll(path string) error {
+func (fs *fs) removeAll(p string) error {
 	// open the file to check if it's a directory
-	f, err := fs.Open(path)
+	f, err := fs.Open(p)
 	if err != nil {
 		return err
 	}
@@ -339,12 +331,12 @@ func (fs *fs) removeAll(path string) error {
 
 	// if it's not a directory, just remove it
 	if !info.IsDir() {
-		return fs.Remove(path)
+		return fs.Remove(p)
 	}
 
 	// For directories, we need to recursively remove contents
 	// Reopen to read directory entries
-	f, err = fs.Open(path)
+	f, err = fs.Open(p)
 	if err != nil {
 		return err
 	}
@@ -357,7 +349,7 @@ func (fs *fs) removeAll(path string) error {
 			if name == "." || name == ".." {
 				continue
 			}
-			if err := fs.removeAll(filepath.Join(path, name)); err != nil {
+			if err := fs.removeAll(path.Join(p, name)); err != nil {
 				return err
 			}
 		}
@@ -375,7 +367,7 @@ func (fs *fs) removeAll(path string) error {
 	}
 
 	// Finally, remove the directory itself
-	if err := fs.filer.Remove(path); err != nil {
+	if err := fs.filer.Remove(p); err != nil {
 		return err
 	}
 
@@ -389,7 +381,7 @@ func (fs *fs) RemoveAll(name string) (err error) {
 	}
 	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
-			name = filepath.Clean(filepath.Join(fs.cwd, name))
+			name = path.Join(fs.cwd, name)
 		}
 	}
 	return fs.removeAll(name)
@@ -401,7 +393,7 @@ func (fs *fs) Truncate(name string, size int64) error {
 	}
 	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
-			name = filepath.Clean(filepath.Join(fs.cwd, name))
+			name = path.Join(fs.cwd, name)
 		}
 	}
 
