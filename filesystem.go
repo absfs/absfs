@@ -11,6 +11,13 @@ import (
 
 var ErrNotImplemented = errors.New("not implemented")
 
+// toSlash normalizes a path to always use forward slashes.
+// This is critical for cross-platform compatibility since all absfs
+// virtual filesystems use Unix-style forward slash paths.
+func toSlash(p string) string {
+	return strings.ReplaceAll(p, "\\", "/")
+}
+
 type ReadOnlyFiler interface {
 	Open(name string) (io.ReadCloser, error)
 }
@@ -130,6 +137,7 @@ func isVirtualAbs(p string) bool {
 }
 
 func (fs *fs) OpenFile(name string, flag int, perm os.FileMode) (f File, err error) {
+	name = toSlash(name)
 	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
 			name = path.Join(fs.cwd, name)
@@ -139,6 +147,7 @@ func (fs *fs) OpenFile(name string, flag int, perm os.FileMode) (f File, err err
 }
 
 func (fs *fs) Mkdir(name string, perm os.FileMode) error {
+	name = toSlash(name)
 	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
 			name = path.Join(fs.cwd, name)
@@ -148,6 +157,7 @@ func (fs *fs) Mkdir(name string, perm os.FileMode) error {
 }
 
 func (fs *fs) Remove(name string) error {
+	name = toSlash(name)
 	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
 			name = path.Join(fs.cwd, name)
@@ -157,6 +167,8 @@ func (fs *fs) Remove(name string) error {
 }
 
 func (fs *fs) Rename(oldpath, newpath string) error {
+	oldpath = toSlash(oldpath)
+	newpath = toSlash(newpath)
 	if !isVirtualAbs(oldpath) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
 			oldpath = path.Join(fs.cwd, oldpath)
@@ -172,6 +184,7 @@ func (fs *fs) Rename(oldpath, newpath string) error {
 }
 
 func (fs *fs) Stat(name string) (os.FileInfo, error) {
+	name = toSlash(name)
 	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
 			name = path.Join(fs.cwd, name)
@@ -181,6 +194,7 @@ func (fs *fs) Stat(name string) (os.FileInfo, error) {
 }
 
 func (fs *fs) Chmod(name string, mode os.FileMode) error {
+	name = toSlash(name)
 	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
 			name = path.Join(fs.cwd, name)
@@ -190,6 +204,7 @@ func (fs *fs) Chmod(name string, mode os.FileMode) error {
 }
 
 func (fs *fs) Chtimes(name string, atime time.Time, mtime time.Time) error {
+	name = toSlash(name)
 	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
 			name = path.Join(fs.cwd, name)
@@ -200,6 +215,7 @@ func (fs *fs) Chtimes(name string, atime time.Time, mtime time.Time) error {
 }
 
 func (fs *fs) Chown(name string, uid, gid int) error {
+	name = toSlash(name)
 	if !isVirtualAbs(name) {
 		if _, ok := fs.filer.(dirnavigator); !ok {
 			name = path.Join(fs.cwd, name)
@@ -227,6 +243,9 @@ func (fs *fs) ListSeparator() uint8 {
 }
 
 func (fs *fs) Chdir(dir string) error {
+	// Normalize to forward slashes for cross-platform compatibility
+	dir = toSlash(dir)
+
 	if filer, ok := fs.filer.(dirnavigator); ok {
 		return filer.Chdir(dir)
 	}
@@ -263,6 +282,7 @@ func (fs *fs) TempDir() string {
 }
 
 func (fs *fs) Open(name string) (File, error) {
+	name = toSlash(name)
 	if filer, ok := fs.filer.(opener); ok {
 		return filer.Open(name)
 	}
@@ -275,6 +295,7 @@ func (fs *fs) Open(name string) (File, error) {
 }
 
 func (fs *fs) Create(name string) (File, error) {
+	name = toSlash(name)
 	if filer, ok := fs.filer.(creator); ok {
 		return filer.Create(name)
 	}
@@ -287,6 +308,7 @@ func (fs *fs) Create(name string) (File, error) {
 }
 
 func (fs *fs) MkdirAll(name string, perm os.FileMode) error {
+	name = toSlash(name)
 	if filer, ok := fs.filer.(mkaller); ok {
 		return filer.MkdirAll(name, perm)
 	}
@@ -375,7 +397,7 @@ func (fs *fs) removeAll(p string) error {
 }
 
 func (fs *fs) RemoveAll(name string) (err error) {
-
+	name = toSlash(name)
 	if filer, ok := fs.filer.(remover); ok {
 		return filer.RemoveAll(name)
 	}
@@ -388,6 +410,7 @@ func (fs *fs) RemoveAll(name string) (err error) {
 }
 
 func (fs *fs) Truncate(name string, size int64) error {
+	name = toSlash(name)
 	if filer, ok := fs.filer.(truncater); ok {
 		return filer.Truncate(name, size)
 	}
