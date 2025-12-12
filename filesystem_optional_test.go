@@ -39,16 +39,6 @@ func (m *mockFilerWithOptionals) Getwd() (string, error) {
 	return m.cwd, nil
 }
 
-// Implement optional separator interface
-func (m *mockFilerWithOptionals) Separator() uint8 {
-	return '/'
-}
-
-// Implement optional listseparator interface
-func (m *mockFilerWithOptionals) ListSeparator() uint8 {
-	return ':'
-}
-
 // Implement optional temper interface
 func (m *mockFilerWithOptionals) TempDir() string {
 	return filepath.Clean("/tmp")
@@ -112,20 +102,6 @@ func (m *mockFilerWithOptionals) Truncate(name string, size int64) error {
 func TestFileSystemWithOptionalInterfaces(t *testing.T) {
 	mock := newMockFilerWithOptionals()
 	fs := ExtendFiler(mock)
-
-	t.Run("Separator", func(t *testing.T) {
-		sep := fs.Separator()
-		if sep != '/' {
-			t.Errorf("expected '/', got %c", sep)
-		}
-	})
-
-	t.Run("ListSeparator", func(t *testing.T) {
-		sep := fs.ListSeparator()
-		if sep != ':' {
-			t.Errorf("expected ':', got %c", sep)
-		}
-	})
 
 	t.Run("TempDir", func(t *testing.T) {
 		tmpDir := fs.TempDir()

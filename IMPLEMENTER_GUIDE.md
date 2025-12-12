@@ -23,11 +23,11 @@ This guide provides comprehensive instructions for implementing a custom filesys
 
 ## Overview
 
-The absfs package uses interface segregation to make filesystem implementation as simple as possible. You only need to implement the **`Filer` interface** (8 methods) to create a functional filesystem. The `ExtendFiler` function then provides all additional `FileSystem` methods automatically.
+The absfs package uses interface segregation to make filesystem implementation as simple as possible. You only need to implement the **`Filer` interface** (11 methods) to create a functional filesystem. The `ExtendFiler` function then provides all additional `FileSystem` methods automatically.
 
 ### Key Principles
 
-- **Minimal Implementation**: Only 8 methods required
+- **Minimal Implementation**: Only 11 methods required (8 core + 3 io/fs compatibility methods)
 - **No Internal Dependencies**: Your implementation doesn't need to know about absfs internals
 - **Composition-Friendly**: Your Filer works with all absfs composition patterns
 - **Absolute Paths Only**: Filers only need to handle absolute paths
@@ -61,6 +61,11 @@ type Filer interface {
     Chmod(name string, mode os.FileMode) error
     Chtimes(name string, atime time.Time, mtime time.Time) error
     Chown(name string, uid, gid int) error
+
+    // io/fs compatibility methods
+    ReadDir(name string) ([]fs.DirEntry, error)
+    ReadFile(name string) ([]byte, error)
+    Sub(dir string) (fs.FS, error)
 }
 ```
 
@@ -452,6 +457,176 @@ func (fs *MyFiler) Chown(name string, uid, gid int) error {
 
 ---
 
+### ReadDir
+
+```go
+func (fs *MyFiler) ReadDir(name string) ([]fs.DirEntry, error)
+```
+
+**Purpose**: Read directory contents and return entries compatible with `io/fs`.
+
+**Requirements**:
+- Return list of directory entries sorted by filename
+- Return `os.ErrNotExist` if directory doesn't exist
+- Return error if `name` is not a directory
+- Each `fs.DirEntry` must provide Name(), IsDir(), Type(), and Info() methods
+- Compatible with `io/fs.ReadDirFS` interface
+
+**Note**: `ExtendFiler` provides a default implementation that uses `Open()` and `File.ReadDir()`. You can implement this method directly for better performance.
+
+**Example**:
+```go
+func (fs *MyFiler) ReadDir(name string) ([]fs.DirEntry, error) {
+    entries, exists := fs.lookupDir(name)
+    if !exists {
+        return nil, os.ErrNotExist
+    }
+
+    // Convert internal entries to fs.DirEntry
+    result := make([]fs.DirEntry, 0, len(entries))
+    for _, entry := range entries {
+        result = append(result, &dirEntry{
+            name:  entry.Name,
+            isDir: entry.IsDir,
+            mode:  entry.Mode,
+            // ... other fields
+        })
+    }
+
+    // Sort by name
+    sort.Slice(result, func(i, j int) bool {
+        return result[i].Name() < result[j].Name()
+    })
+
+    return result, nil
+}
+
+// Example fs.DirEntry implementation
+type dirEntry struct {
+    name  string
+    isDir bool
+    mode  os.FileMode
+    // ... other fields
+}
+
+func (d *dirEntry) Name() string               { return d.name }
+func (d *dirEntry) IsDir() bool                { return d.isDir }
+func (d *dirEntry) Type() fs.FileMode          { return d.mode.Type() }
+func (d *dirEntry) Info() (fs.FileInfo, error) { /* return full FileInfo */ }
+```
+
+---
+
+### ReadFile
+
+```go
+func (fs *MyFiler) ReadFile(name string) ([]byte, error)
+```
+
+**Purpose**: Read entire file contents in one operation.
+
+**Requirements**:
+- Read and return entire file contents
+- Return `os.ErrNotExist` if file doesn't exist
+- Return error if `name` is a directory
+- Compatible with `io/fs.ReadFileFS` interface
+
+**Note**: `ExtendFiler` provides a default implementation that uses `Open()` and reads the file. You can implement this method directly for better performance (e.g., direct buffer access).
+
+**Example**:
+```go
+func (fs *MyFiler) ReadFile(name string) ([]byte, error) {
+    entry, exists := fs.lookup(name)
+    if !exists {
+        return nil, os.ErrNotExist
+    }
+
+    if entry.IsDir {
+        return nil, errors.New("is a directory")
+    }
+
+    // For in-memory filesystems, might return data directly
+    return append([]byte(nil), entry.Data...), nil
+
+    // For other filesystems, open and read
+    // f, err := fs.Open(name)
+    // if err != nil {
+    //     return nil, err
+    // }
+    // defer f.Close()
+    // return io.ReadAll(f)
+}
+```
+
+---
+
+### Sub
+
+```go
+func (fs *MyFiler) Sub(dir string) (fs.FS, error)
+```
+
+**Purpose**: Return a read-only `fs.FS` view of a subdirectory.
+
+**Requirements**:
+- Return an `fs.FS` rooted at `dir`
+- Return `os.ErrNotExist` if directory doesn't exist
+- Return error if `dir` is not a directory
+- The returned `fs.FS` must be read-only
+- Paths in the returned `fs.FS` are relative to `dir`
+- Compatible with `io/fs.SubFS` interface
+
+**Note**: `ExtendFiler` provides a default implementation using `FilerToFS()`. Most implementations don't need to override this unless they have specialized subtree handling.
+
+**Example**:
+```go
+func (fs *MyFiler) Sub(dir string) (fs.FS, error) {
+    // Verify directory exists
+    info, err := fs.Stat(dir)
+    if err != nil {
+        return nil, err
+    }
+    if !info.IsDir() {
+        return nil, errors.New("not a directory")
+    }
+
+    // Use the default implementation
+    return absfs.FilerToFS(fs, dir)
+}
+```
+
+**Custom Implementation** (advanced):
+```go
+// Only if you need specialized behavior
+type subFS struct {
+    parent *MyFiler
+    root   string
+}
+
+func (fs *MyFiler) Sub(dir string) (fs.FS, error) {
+    info, err := fs.Stat(dir)
+    if err != nil {
+        return nil, err
+    }
+    if !info.IsDir() {
+        return nil, errors.New("not a directory")
+    }
+
+    return &subFS{parent: fs, root: dir}, nil
+}
+
+func (s *subFS) Open(name string) (fs.File, error) {
+    // Validate per fs.ValidPath
+    if !fs.ValidPath(name) {
+        return nil, fs.ErrInvalid
+    }
+    fullPath := path.Join(s.root, name)
+    return s.parent.OpenFile(fullPath, os.O_RDONLY, 0)
+}
+```
+
+---
+
 ## Using ExtendFiler
 
 Once you've implemented the `Filer` interface, use `ExtendFiler` to get a full `FileSystem`:
@@ -467,9 +642,7 @@ func NewFS() absfs.FileSystem {
 
 `ExtendFiler` adds these `FileSystem` methods automatically:
 
-- **`Separator()`**: Returns `/` (Unix-style separator)
-- **`ListSeparator()`**: Returns `:` (Unix-style path list separator)
-- **`TempDir()`**: Returns `os.TempDir()`
+- **`TempDir()`**: Returns `/tmp` for virtual filesystems
 - **`Chdir(dir)`**: Changes current working directory for this FileSystem instance
 - **`Getwd()`**: Returns current working directory
 - **`Open(name)`**: Convenience for `OpenFile(name, O_RDONLY, 0)`

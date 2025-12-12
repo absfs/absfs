@@ -3,6 +3,7 @@ package absfs
 import (
 	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -116,6 +117,87 @@ func (m *mockFiler) Chown(name string, uid, gid int) error {
 		return &os.PathError{Op: "chown", Path: name, Err: os.ErrNotExist}
 	}
 	return nil
+}
+
+func (m *mockFiler) ReadDir(name string) ([]fs.DirEntry, error) {
+	name = filepath.Clean(name)
+	f, exists := m.files[name]
+	if !exists {
+		return nil, &os.PathError{Op: "readdir", Path: name, Err: os.ErrNotExist}
+	}
+	if !f.isDir {
+		return nil, &os.PathError{Op: "readdir", Path: name, Err: errors.New("not a directory")}
+	}
+	entries := make([]fs.DirEntry, len(f.entries))
+	for i, info := range f.entries {
+		entries[i] = fs.FileInfoToDirEntry(info)
+	}
+	return entries, nil
+}
+
+func (m *mockFiler) ReadFile(name string) ([]byte, error) {
+	name = filepath.Clean(name)
+	f, exists := m.files[name]
+	if !exists {
+		return nil, &os.PathError{Op: "readfile", Path: name, Err: os.ErrNotExist}
+	}
+	if f.isDir {
+		return nil, &os.PathError{Op: "readfile", Path: name, Err: errors.New("is a directory")}
+	}
+	return append([]byte(nil), f.content...), nil
+}
+
+func (m *mockFiler) Sub(dir string) (fs.FS, error) {
+	dir = filepath.Clean(dir)
+	f, exists := m.files[dir]
+	if !exists {
+		return nil, &os.PathError{Op: "sub", Path: dir, Err: os.ErrNotExist}
+	}
+	if !f.isDir {
+		return nil, &os.PathError{Op: "sub", Path: dir, Err: errors.New("not a directory")}
+	}
+	// Use FilerToFS to create a read-only fs.FS wrapper
+	return FilerToFS(m, dir)
+}
+
+// mockSubFiler wraps mockFiler with a path prefix
+type mockSubFiler struct {
+	parent *mockFiler
+	prefix string
+}
+
+func (s *mockSubFiler) OpenFile(name string, flag int, perm os.FileMode) (File, error) {
+	return s.parent.OpenFile(filepath.Join(s.prefix, name), flag, perm)
+}
+func (s *mockSubFiler) Mkdir(name string, perm os.FileMode) error {
+	return s.parent.Mkdir(filepath.Join(s.prefix, name), perm)
+}
+func (s *mockSubFiler) Remove(name string) error {
+	return s.parent.Remove(filepath.Join(s.prefix, name))
+}
+func (s *mockSubFiler) Rename(oldpath, newpath string) error {
+	return s.parent.Rename(filepath.Join(s.prefix, oldpath), filepath.Join(s.prefix, newpath))
+}
+func (s *mockSubFiler) Stat(name string) (os.FileInfo, error) {
+	return s.parent.Stat(filepath.Join(s.prefix, name))
+}
+func (s *mockSubFiler) Chmod(name string, mode os.FileMode) error {
+	return s.parent.Chmod(filepath.Join(s.prefix, name), mode)
+}
+func (s *mockSubFiler) Chtimes(name string, atime time.Time, mtime time.Time) error {
+	return s.parent.Chtimes(filepath.Join(s.prefix, name), atime, mtime)
+}
+func (s *mockSubFiler) Chown(name string, uid, gid int) error {
+	return s.parent.Chown(filepath.Join(s.prefix, name), uid, gid)
+}
+func (s *mockSubFiler) ReadDir(name string) ([]fs.DirEntry, error) {
+	return s.parent.ReadDir(filepath.Join(s.prefix, name))
+}
+func (s *mockSubFiler) ReadFile(name string) ([]byte, error) {
+	return s.parent.ReadFile(filepath.Join(s.prefix, name))
+}
+func (s *mockSubFiler) Sub(dir string) (fs.FS, error) {
+	return s.parent.Sub(filepath.Join(s.prefix, dir))
 }
 
 // mockFile represents a file in the mock filesystem
@@ -269,6 +351,17 @@ func (fh *mockFileHandle) Readdirnames(n int) (names []string, err error) {
 		names = append(names, entry.Name())
 	}
 	return names, nil
+}
+
+func (fh *mockFileHandle) ReadDir(n int) ([]fs.DirEntry, error) {
+	if !fh.file.isDir {
+		return nil, errors.New("not a directory")
+	}
+	entries := make([]fs.DirEntry, len(fh.file.entries))
+	for i, info := range fh.file.entries {
+		entries[i] = fs.FileInfoToDirEntry(info)
+	}
+	return entries, nil
 }
 
 // Tests start here
@@ -444,23 +537,14 @@ func TestFileSystemChown(t *testing.T) {
 	}
 }
 
-func TestFileSystemSeparator(t *testing.T) {
-	mock := newMockFiler()
-	fs := ExtendFiler(mock)
-
-	sep := fs.Separator()
-	if sep != filepath.Separator {
-		t.Errorf("expected separator %c, got %c", filepath.Separator, sep)
+func TestSeparatorConstants(t *testing.T) {
+	// Test that separator constants are correct
+	if Separator != '/' {
+		t.Errorf("expected separator %c, got %c", '/', Separator)
 	}
-}
 
-func TestFileSystemListSeparator(t *testing.T) {
-	mock := newMockFiler()
-	fs := ExtendFiler(mock)
-
-	sep := fs.ListSeparator()
-	if sep != filepath.ListSeparator {
-		t.Errorf("expected list separator %c, got %c", filepath.ListSeparator, sep)
+	if ListSeparator != ':' {
+		t.Errorf("expected list separator %c, got %c", ':', ListSeparator)
 	}
 }
 
@@ -507,8 +591,9 @@ func TestFileSystemGetwd(t *testing.T) {
 		t.Fatalf("Getwd failed: %v", err)
 	}
 
-	if cwd != string(filepath.Separator) {
-		t.Errorf("expected initial cwd %s, got %s", string(filepath.Separator), cwd)
+	// absfs uses forward slashes internally regardless of platform
+	if cwd != "/" {
+		t.Errorf("expected initial cwd /, got %s", cwd)
 	}
 }
 

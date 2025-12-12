@@ -2,6 +2,7 @@ package absfs
 
 import (
 	"io"
+	"io/fs"
 	"os"
 )
 
@@ -137,6 +138,28 @@ func (f *fileadapter) Close() error {
 	return f.sf.Close()
 }
 
+// ReadDir - first checks to see if the nested `Seekable` type provides its
+// own implementation of `ReadDir`. If not, `ReadDir` calls `Readdir` and
+// converts the []os.FileInfo to []fs.DirEntry.
+func (f *fileadapter) ReadDir(n int) ([]fs.DirEntry, error) {
+	if file, ok := f.sf.(dirEntryReader); ok {
+		return file.ReadDir(n)
+	}
+
+	// Fallback: use Readdir and convert to DirEntry
+	infos, err := f.sf.Readdir(n)
+	if err != nil {
+		return nil, err
+	}
+
+	entries := make([]fs.DirEntry, len(infos))
+	for i, info := range infos {
+		entries[i] = fs.FileInfoToDirEntry(info)
+	}
+
+	return entries, nil
+}
+
 // interfaces for easy interface typing
 
 type ater interface {
@@ -150,4 +173,8 @@ type filetruncater interface {
 
 type dirnamer interface {
 	Readdirnames(n int) (names []string, err error)
+}
+
+type dirEntryReader interface {
+	ReadDir(n int) ([]fs.DirEntry, error)
 }

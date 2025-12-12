@@ -10,12 +10,13 @@ This guide provides comprehensive instructions for using the absfs package to wo
 2. [Core Concepts](#core-concepts)
 3. [Working with Files](#working-with-files)
 4. [Working with Directories](#working-with-directories)
-5. [Path Handling](#path-handling)
-6. [Thread Safety](#thread-safety)
-7. [Available Filesystems](#available-filesystems)
-8. [Composition Patterns](#composition-patterns)
-9. [Testing with absfs](#testing-with-absfs)
-10. [Best Practices](#best-practices)
+5. [io/fs Compatibility Methods](#iofs-compatibility-methods)
+6. [Path Handling](#path-handling)
+7. [Thread Safety](#thread-safety)
+8. [Available Filesystems](#available-filesystems)
+9. [Composition Patterns](#composition-patterns)
+10. [Testing with absfs](#testing-with-absfs)
+11. [Best Practices](#best-practices)
 
 ---
 
@@ -91,8 +92,6 @@ type FileSystem interface {
     Truncate(name string, size int64) error
 
     // Path operations
-    Separator() uint8
-    ListSeparator() uint8
     Chdir(dir string) error
     Getwd() (dir string, err error)
     TempDir() string
@@ -423,6 +422,127 @@ func dirExists(fs absfs.FileSystem, path string) (bool, error) {
     }
     return info.IsDir(), nil
 }
+```
+
+---
+
+## io/fs Compatibility Methods
+
+absfs includes methods for compatibility with Go's `io/fs` package, enabling interoperability with the standard library filesystem interfaces.
+
+### ReadDir - Reading Directory Entries
+
+The `ReadDir` method returns directory entries as `[]fs.DirEntry`, compatible with `io/fs.ReadDirFS`:
+
+```go
+// Read directory entries
+entries, err := fs.ReadDir("/var/log")
+if err != nil {
+    return err
+}
+
+for _, entry := range entries {
+    fmt.Printf("%s (dir: %v)\n", entry.Name(), entry.IsDir())
+
+    // Get full FileInfo if needed
+    info, err := entry.Info()
+    if err != nil {
+        continue
+    }
+    fmt.Printf("  Size: %d, Mode: %s\n", info.Size(), info.Mode())
+}
+```
+
+**Benefits over `Readdir`:**
+- Returns `fs.DirEntry` which is more efficient (doesn't always need full stat)
+- Compatible with `io/fs.ReadDirFS` interface
+- Sorted by filename
+
+### ReadFile - Reading Entire Files
+
+The `ReadFile` method reads an entire file and returns its contents, compatible with `io/fs.ReadFileFS`:
+
+```go
+// Read entire file at once
+data, err := fs.ReadFile("/config/app.json")
+if err != nil {
+    return err
+}
+
+// Parse JSON, etc.
+var config Config
+if err := json.Unmarshal(data, &config); err != nil {
+    return err
+}
+```
+
+**Benefits over `Open` + `io.ReadAll`:**
+- More concise for simple file reading
+- Automatically handles file opening and closing
+- Optimized allocation based on file size
+- Compatible with `io/fs.ReadFileFS` interface
+
+### Sub - Creating Subdirectory Views
+
+The `Sub` method returns a read-only `fs.FS` rooted at a subdirectory, compatible with `io/fs.SubFS`:
+
+```go
+// Create a view of /var/log subdirectory
+logFS, err := fs.Sub("/var/log")
+if err != nil {
+    return err
+}
+
+// Paths are now relative to /var/log
+file, err := logFS.Open("app.log") // Opens /var/log/app.log
+if err != nil {
+    return err
+}
+defer file.Close()
+
+// Use with standard library functions
+err = template.ParseFS(logFS, "*.tmpl")
+```
+
+**Important Notes:**
+- The returned `fs.FS` is **read-only**
+- All paths must be valid `fs.FS` paths (no `..`, no absolute paths)
+- For writable subdirectory access, use [basefs](https://github.com/absfs/basefs) instead
+
+**Use Cases:**
+- Passing a subdirectory to functions that accept `fs.FS`
+- Working with `html/template`, `embed`, and other stdlib packages
+- Creating sandboxed read-only views
+- Template parsing, asset serving, etc.
+
+### Working with io/fs Standard Library
+
+These methods make absfs filesystems compatible with standard library functions:
+
+```go
+import (
+    "html/template"
+    "io/fs"
+)
+
+// Use with template.ParseFS
+tmplFS, _ := fs.Sub("/templates")
+tmpl, err := template.ParseFS(tmplFS, "*.html")
+
+// Use with fs.WalkDir
+err = fs.WalkDir(fs, "/data", func(path string, d fs.DirEntry, err error) error {
+    if err != nil {
+        return err
+    }
+    fmt.Println(path)
+    return nil
+})
+
+// Use with fs.ReadFile
+data, err := fs.ReadFile(fs, "/config.json")
+
+// Use with fs.ReadDir
+entries, err := fs.ReadDir(fs, "/logs")
 ```
 
 ---

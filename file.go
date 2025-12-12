@@ -2,6 +2,7 @@ package absfs
 
 import (
 	"io"
+	"io/fs"
 	"os"
 )
 
@@ -99,6 +100,19 @@ type File interface {
 	// error before the end of the directory, Readdirnames returns the names read
 	// until that point and a non-nil error.
 	Readdirnames(n int) (names []string, err error)
+
+	// ReadDir reads the contents of the directory and returns a slice of up to n
+	// DirEntry values in directory order. This is the modern Go 1.16+ equivalent
+	// of Readdir that returns lightweight DirEntry values instead of full FileInfo.
+	//
+	// If n > 0, ReadDir returns at most n entries. In this case, if ReadDir
+	// returns an empty slice, it will return a non-nil error explaining why.
+	// At the end of a directory, the error is io.EOF.
+	//
+	// If n <= 0, ReadDir returns all entries from the directory in a single slice.
+	// In this case, if ReadDir succeeds (reads all the way to the end of the
+	// directory), it returns the slice and a nil error.
+	ReadDir(n int) ([]fs.DirEntry, error)
 }
 
 // ExtendSeekable - extends a `Seekable` interface implementation to a File

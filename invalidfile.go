@@ -1,6 +1,7 @@
 package absfs
 
 import (
+	"io/fs"
 	"os"
 	"syscall"
 )
@@ -79,4 +80,9 @@ func (f *InvalidFile) Truncate(size int64) error {
 // Readdirnames - returns an *os.PathError indicating a bad file handle.
 func (f *InvalidFile) Readdirnames(n int) (names []string, err error) {
 	return nil, &os.PathError{Op: "readdirnames", Path: f.Name(), Err: syscall.EBADF}
+}
+
+// ReadDir - returns an *os.PathError indicating a bad file handle.
+func (f *InvalidFile) ReadDir(n int) ([]fs.DirEntry, error) {
+	return nil, &os.PathError{Op: "readdir", Path: f.Name(), Err: syscall.EBADF}
 }

@@ -48,6 +48,12 @@ type Filer interface {
     Stat(name string) (os.FileInfo, error)
     Chmod(name string, mode os.FileMode) error
     Chtimes(name string, atime time.Time, mtime time.Time) error
+    Chown(name string, uid, gid int) error
+
+    // io/fs compatibility methods
+    ReadDir(name string) ([]fs.DirEntry, error)
+    ReadFile(name string) ([]byte, error)
+    Sub(dir string) (fs.FS, error)
 
 }
 ```
@@ -68,8 +74,6 @@ type FileSystem interface {
     Chtimes(name string, atime time.Time, mtime time.Time) error
     Chown(name string, uid, gid int) error
 
-    Separator() uint8
-    ListSeparator() uint8
     Chdir(dir string) error
     Getwd() (dir string, err error)
     TempDir() string
@@ -96,6 +100,8 @@ type SymLinker interface {
 }
 ```
 
+> **Windows Note**: When using `osfs` on Windows, symlinks require elevated privileges or Developer Mode. See the [osfs SYMLINKS.md](https://github.com/absfs/osfs/blob/master/SYMLINKS.md) for configuration instructions. Virtual filesystems (memfs, boltfs, etc.) support symlinks on all platforms without special configuration.
+
 ### SymlinkFileSystem - Interface
 A FileSystem that supports symbolic links.
 
@@ -112,8 +118,6 @@ type SymlinkFileSystem interface {
     Chown(name string, uid, gid int) error
 
     // FileSystem interface
-    Separator() uint8
-    ListSeparator() uint8
     Chdir(dir string) error
     Getwd() (dir string, err error)
     TempDir() string

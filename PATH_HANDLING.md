@@ -30,8 +30,8 @@ fs.Create("/c/Users/test/file.txt")    // Windows: C:\Users\test\file.txt
 This means:
 
 - **Paths from one absfs filesystem work in another** - composability
-- **`Separator()` always returns `/`** on all platforms
-- **`ListSeparator()` always returns `:`** on all platforms
+- **`absfs.Separator` is always `/`** on all platforms
+- **`absfs.ListSeparator` is always `:`** on all platforms
 - **`Getwd()`, `File.Name()`, etc. return Unix-style paths**
 
 ---
@@ -221,8 +221,8 @@ ufs.MkdirAll("/var/log", 0755)  // Works
 
 | Operation | Unix | Windows |
 |-----------|------|---------|
-| `Separator()` | `/` | `/` |
-| `ListSeparator()` | `:` | `:` |
+| `absfs.Separator` | `/` | `/` |
+| `absfs.ListSeparator` | `:` | `:` |
 | `Getwd()` | `/home/user` | `/c/Users/user` |
 | `TempDir()` | `/tmp` | `/c/Users/user/AppData/Local/Temp` |
 | `File.Name()` | `/path/to/file` | `/c/path/to/file` |
