@@ -12,6 +12,21 @@ import (
 	"testing/fstest"
 )
 
+// isInvalidPathError checks if err indicates an invalid path error.
+// This handles both Go 1.23+ (which uses fs.ErrInvalid) and Go 1.21-1.22
+// (which had a bug returning errors.New("invalid name") instead).
+// See: https://github.com/golang/go/issues/65419
+func isInvalidPathError(err error) bool {
+	if errors.Is(err, fs.ErrInvalid) {
+		return true
+	}
+	// Go 1.21-1.22 bug: returned "invalid name" string instead of ErrInvalid
+	if err != nil && strings.Contains(err.Error(), "invalid name") {
+		return true
+	}
+	return false
+}
+
 // setupTestMockFS creates a mock filesystem with a test directory structure
 func setupTestMockFS(t *testing.T) Filer {
 	t.Helper()
@@ -306,7 +321,7 @@ func TestSubFS_Open(t *testing.T) {
 		if !errors.As(err, &pathErr) {
 			t.Errorf("expected *fs.PathError, got %T", err)
 		}
-		if !errors.Is(err, fs.ErrInvalid) {
+		if !isInvalidPathError(err) {
 			t.Errorf("expected fs.ErrInvalid, got %v", err)
 		}
 	})
@@ -320,7 +335,7 @@ func TestSubFS_Open(t *testing.T) {
 		if !errors.As(err, &pathErr) {
 			t.Errorf("expected *fs.PathError, got %T", err)
 		}
-		if !errors.Is(err, fs.ErrInvalid) {
+		if !isInvalidPathError(err) {
 			t.Errorf("expected fs.ErrInvalid, got %v", err)
 		}
 	})
@@ -424,7 +439,7 @@ func TestSubFS_Sub(t *testing.T) {
 		if err == nil {
 			t.Error("expected error for invalid path")
 		}
-		if !errors.Is(err, fs.ErrInvalid) {
+		if !isInvalidPathError(err) {
 			t.Errorf("expected fs.ErrInvalid, got %v", err)
 		}
 	})
@@ -516,7 +531,7 @@ func TestSubFS_ReadDir(t *testing.T) {
 		if err == nil {
 			t.Error("expected error for invalid path")
 		}
-		if !errors.Is(err, fs.ErrInvalid) {
+		if !isInvalidPathError(err) {
 			t.Errorf("expected fs.ErrInvalid, got %v", err)
 		}
 	})
@@ -579,7 +594,7 @@ func TestSubFS_ReadFile(t *testing.T) {
 		if err == nil {
 			t.Error("expected error for invalid path")
 		}
-		if !errors.Is(err, fs.ErrInvalid) {
+		if !isInvalidPathError(err) {
 			t.Errorf("expected fs.ErrInvalid, got %v", err)
 		}
 	})
@@ -656,7 +671,7 @@ func TestSubFS_Stat(t *testing.T) {
 		if err == nil {
 			t.Error("expected error for invalid path")
 		}
-		if !errors.Is(err, fs.ErrInvalid) {
+		if !isInvalidPathError(err) {
 			t.Errorf("expected fs.ErrInvalid, got %v", err)
 		}
 	})
@@ -927,7 +942,7 @@ func TestSubFS_ValidPath(t *testing.T) {
 		t.Run("ValidPath_"+validPath, func(t *testing.T) {
 			_, err := fsys.Open(validPath)
 			// Error might occur if path doesn't exist, but shouldn't be fs.ErrInvalid
-			if err != nil && errors.Is(err, fs.ErrInvalid) {
+			if err != nil && isInvalidPathError(err) {
 				t.Errorf("valid path %q rejected with fs.ErrInvalid", validPath)
 			}
 		})
