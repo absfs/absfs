@@ -5,7 +5,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"path/filepath"
+	stdpath "path"
 	"testing"
 	"time"
 )
@@ -22,7 +22,7 @@ func newMockFiler() *mockFiler {
 }
 
 func (m *mockFiler) OpenFile(name string, flag int, perm os.FileMode) (File, error) {
-	name = filepath.Clean(name)
+	name = stdpath.Clean(name)
 	if flag&os.O_CREATE != 0 {
 		if _, exists := m.files[name]; !exists {
 			m.files[name] = &mockFile{
@@ -47,7 +47,7 @@ func (m *mockFiler) OpenFile(name string, flag int, perm os.FileMode) (File, err
 }
 
 func (m *mockFiler) Mkdir(name string, perm os.FileMode) error {
-	name = filepath.Clean(name)
+	name = stdpath.Clean(name)
 	if _, exists := m.files[name]; exists {
 		return &os.PathError{Op: "mkdir", Path: name, Err: os.ErrExist}
 	}
@@ -61,7 +61,7 @@ func (m *mockFiler) Mkdir(name string, perm os.FileMode) error {
 }
 
 func (m *mockFiler) Remove(name string) error {
-	name = filepath.Clean(name)
+	name = stdpath.Clean(name)
 	if _, exists := m.files[name]; !exists {
 		return &os.PathError{Op: "remove", Path: name, Err: os.ErrNotExist}
 	}
@@ -70,8 +70,8 @@ func (m *mockFiler) Remove(name string) error {
 }
 
 func (m *mockFiler) Rename(oldpath, newpath string) error {
-	oldpath = filepath.Clean(oldpath)
-	newpath = filepath.Clean(newpath)
+	oldpath = stdpath.Clean(oldpath)
+	newpath = stdpath.Clean(newpath)
 	f, exists := m.files[oldpath]
 	if !exists {
 		return &os.PathError{Op: "rename", Path: oldpath, Err: os.ErrNotExist}
@@ -83,7 +83,7 @@ func (m *mockFiler) Rename(oldpath, newpath string) error {
 }
 
 func (m *mockFiler) Stat(name string) (os.FileInfo, error) {
-	name = filepath.Clean(name)
+	name = stdpath.Clean(name)
 	f, exists := m.files[name]
 	if !exists {
 		return nil, &os.PathError{Op: "stat", Path: name, Err: os.ErrNotExist}
@@ -92,7 +92,7 @@ func (m *mockFiler) Stat(name string) (os.FileInfo, error) {
 }
 
 func (m *mockFiler) Chmod(name string, mode os.FileMode) error {
-	name = filepath.Clean(name)
+	name = stdpath.Clean(name)
 	f, exists := m.files[name]
 	if !exists {
 		return &os.PathError{Op: "chmod", Path: name, Err: os.ErrNotExist}
@@ -102,7 +102,7 @@ func (m *mockFiler) Chmod(name string, mode os.FileMode) error {
 }
 
 func (m *mockFiler) Chtimes(name string, atime time.Time, mtime time.Time) error {
-	name = filepath.Clean(name)
+	name = stdpath.Clean(name)
 	f, exists := m.files[name]
 	if !exists {
 		return &os.PathError{Op: "chtimes", Path: name, Err: os.ErrNotExist}
@@ -112,7 +112,7 @@ func (m *mockFiler) Chtimes(name string, atime time.Time, mtime time.Time) error
 }
 
 func (m *mockFiler) Chown(name string, uid, gid int) error {
-	name = filepath.Clean(name)
+	name = stdpath.Clean(name)
 	if _, exists := m.files[name]; !exists {
 		return &os.PathError{Op: "chown", Path: name, Err: os.ErrNotExist}
 	}
@@ -120,7 +120,7 @@ func (m *mockFiler) Chown(name string, uid, gid int) error {
 }
 
 func (m *mockFiler) ReadDir(name string) ([]fs.DirEntry, error) {
-	name = filepath.Clean(name)
+	name = stdpath.Clean(name)
 	f, exists := m.files[name]
 	if !exists {
 		return nil, &os.PathError{Op: "readdir", Path: name, Err: os.ErrNotExist}
@@ -136,7 +136,7 @@ func (m *mockFiler) ReadDir(name string) ([]fs.DirEntry, error) {
 }
 
 func (m *mockFiler) ReadFile(name string) ([]byte, error) {
-	name = filepath.Clean(name)
+	name = stdpath.Clean(name)
 	f, exists := m.files[name]
 	if !exists {
 		return nil, &os.PathError{Op: "readfile", Path: name, Err: os.ErrNotExist}
@@ -148,7 +148,7 @@ func (m *mockFiler) ReadFile(name string) ([]byte, error) {
 }
 
 func (m *mockFiler) Sub(dir string) (fs.FS, error) {
-	dir = filepath.Clean(dir)
+	dir = stdpath.Clean(dir)
 	f, exists := m.files[dir]
 	if !exists {
 		return nil, &os.PathError{Op: "sub", Path: dir, Err: os.ErrNotExist}
@@ -167,37 +167,37 @@ type mockSubFiler struct {
 }
 
 func (s *mockSubFiler) OpenFile(name string, flag int, perm os.FileMode) (File, error) {
-	return s.parent.OpenFile(filepath.Join(s.prefix, name), flag, perm)
+	return s.parent.OpenFile(stdpath.Join(s.prefix, name), flag, perm)
 }
 func (s *mockSubFiler) Mkdir(name string, perm os.FileMode) error {
-	return s.parent.Mkdir(filepath.Join(s.prefix, name), perm)
+	return s.parent.Mkdir(stdpath.Join(s.prefix, name), perm)
 }
 func (s *mockSubFiler) Remove(name string) error {
-	return s.parent.Remove(filepath.Join(s.prefix, name))
+	return s.parent.Remove(stdpath.Join(s.prefix, name))
 }
 func (s *mockSubFiler) Rename(oldpath, newpath string) error {
-	return s.parent.Rename(filepath.Join(s.prefix, oldpath), filepath.Join(s.prefix, newpath))
+	return s.parent.Rename(stdpath.Join(s.prefix, oldpath), stdpath.Join(s.prefix, newpath))
 }
 func (s *mockSubFiler) Stat(name string) (os.FileInfo, error) {
-	return s.parent.Stat(filepath.Join(s.prefix, name))
+	return s.parent.Stat(stdpath.Join(s.prefix, name))
 }
 func (s *mockSubFiler) Chmod(name string, mode os.FileMode) error {
-	return s.parent.Chmod(filepath.Join(s.prefix, name), mode)
+	return s.parent.Chmod(stdpath.Join(s.prefix, name), mode)
 }
 func (s *mockSubFiler) Chtimes(name string, atime time.Time, mtime time.Time) error {
-	return s.parent.Chtimes(filepath.Join(s.prefix, name), atime, mtime)
+	return s.parent.Chtimes(stdpath.Join(s.prefix, name), atime, mtime)
 }
 func (s *mockSubFiler) Chown(name string, uid, gid int) error {
-	return s.parent.Chown(filepath.Join(s.prefix, name), uid, gid)
+	return s.parent.Chown(stdpath.Join(s.prefix, name), uid, gid)
 }
 func (s *mockSubFiler) ReadDir(name string) ([]fs.DirEntry, error) {
-	return s.parent.ReadDir(filepath.Join(s.prefix, name))
+	return s.parent.ReadDir(stdpath.Join(s.prefix, name))
 }
 func (s *mockSubFiler) ReadFile(name string) ([]byte, error) {
-	return s.parent.ReadFile(filepath.Join(s.prefix, name))
+	return s.parent.ReadFile(stdpath.Join(s.prefix, name))
 }
 func (s *mockSubFiler) Sub(dir string) (fs.FS, error) {
-	return s.parent.Sub(filepath.Join(s.prefix, dir))
+	return s.parent.Sub(stdpath.Join(s.prefix, dir))
 }
 
 // mockFile represents a file in the mock filesystem
@@ -210,7 +210,7 @@ type mockFile struct {
 	entries []os.FileInfo
 }
 
-func (f *mockFile) Name() string       { return filepath.Base(f.name) }
+func (f *mockFile) Name() string       { return stdpath.Base(f.name) }
 func (f *mockFile) Size() int64        { return int64(len(f.content)) }
 func (f *mockFile) Mode() os.FileMode  { return f.mode }
 func (f *mockFile) ModTime() time.Time { return f.modTime }
@@ -385,8 +385,8 @@ func TestFileSystemCreate(t *testing.T) {
 	}
 	defer f.Close()
 
-	if f.Name() != filepath.Clean("/test.txt") {
-		t.Errorf("expected name %s, got %s", filepath.Clean("/test.txt"), f.Name())
+	if f.Name() != stdpath.Clean("/test.txt") {
+		t.Errorf("expected name %s, got %s", stdpath.Clean("/test.txt"), f.Name())
 	}
 }
 
@@ -405,8 +405,8 @@ func TestFileSystemOpen(t *testing.T) {
 	}
 	defer f.Close()
 
-	if f.Name() != filepath.Clean("/test.txt") {
-		t.Errorf("expected name %s, got %s", filepath.Clean("/test.txt"), f.Name())
+	if f.Name() != stdpath.Clean("/test.txt") {
+		t.Errorf("expected name %s, got %s", stdpath.Clean("/test.txt"), f.Name())
 	}
 }
 
@@ -565,8 +565,8 @@ func TestFileSystemChdir(t *testing.T) {
 		t.Fatalf("Getwd failed: %v", err)
 	}
 
-	if cwd != filepath.Clean("/testdir") {
-		t.Errorf("expected cwd %s, got %s", filepath.Clean("/testdir"), cwd)
+	if cwd != stdpath.Clean("/testdir") {
+		t.Errorf("expected cwd %s, got %s", stdpath.Clean("/testdir"), cwd)
 	}
 }
 
