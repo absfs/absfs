@@ -3,7 +3,7 @@ package absfs
 import (
 	"io"
 	"os"
-	"path/filepath"
+	stdpath "path"
 	"testing"
 	"time"
 )
@@ -17,13 +17,13 @@ type mockFilerWithOptionals struct {
 func newMockFilerWithOptionals() *mockFilerWithOptionals {
 	return &mockFilerWithOptionals{
 		mockFiler: newMockFiler(),
-		cwd:       string(filepath.Separator),
+		cwd:       "/",
 	}
 }
 
 // Implement optional dirnavigator interface
 func (m *mockFilerWithOptionals) Chdir(dir string) error {
-	dir = filepath.Clean(dir)
+	dir = stdpath.Clean(dir)
 	if _, exists := m.files[dir]; !exists {
 		return &os.PathError{Op: "chdir", Path: dir, Err: os.ErrNotExist}
 	}
@@ -41,7 +41,7 @@ func (m *mockFilerWithOptionals) Getwd() (string, error) {
 
 // Implement optional temper interface
 func (m *mockFilerWithOptionals) TempDir() string {
-	return filepath.Clean("/tmp")
+	return "/tmp"
 }
 
 // Implement optional opener interface
@@ -56,12 +56,11 @@ func (m *mockFilerWithOptionals) Create(name string) (File, error) {
 
 // Implement optional mkaller interface
 func (m *mockFilerWithOptionals) MkdirAll(name string, perm os.FileMode) error {
-	name = filepath.Clean(name)
+	name = stdpath.Clean(name)
 	parts := []string{}
-	root := string(filepath.Separator)
-	for name != root && name != "." {
+	for name != "/" && name != "." {
 		parts = append([]string{name}, parts...)
-		name = filepath.Dir(name)
+		name = stdpath.Dir(name)
 	}
 
 	for _, part := range parts {
@@ -74,7 +73,7 @@ func (m *mockFilerWithOptionals) MkdirAll(name string, perm os.FileMode) error {
 
 // Implement optional remover interface
 func (m *mockFilerWithOptionals) RemoveAll(path string) error {
-	path = filepath.Clean(path)
+	path = stdpath.Clean(path)
 	if _, exists := m.files[path]; !exists {
 		return &os.PathError{Op: "remove", Path: path, Err: os.ErrNotExist}
 	}
@@ -85,7 +84,7 @@ func (m *mockFilerWithOptionals) RemoveAll(path string) error {
 
 // Implement optional truncater interface
 func (m *mockFilerWithOptionals) Truncate(name string, size int64) error {
-	name = filepath.Clean(name)
+	name = stdpath.Clean(name)
 	f, exists := m.files[name]
 	if !exists {
 		return &os.PathError{Op: "truncate", Path: name, Err: os.ErrNotExist}
@@ -105,8 +104,8 @@ func TestFileSystemWithOptionalInterfaces(t *testing.T) {
 
 	t.Run("TempDir", func(t *testing.T) {
 		tmpDir := fs.TempDir()
-		if tmpDir != filepath.Clean("/tmp") {
-			t.Errorf("expected '%s', got %s", filepath.Clean("/tmp"), tmpDir)
+		if tmpDir != "/tmp" {
+			t.Errorf("expected '/tmp', got %s", tmpDir)
 		}
 	})
 
@@ -120,8 +119,8 @@ func TestFileSystemWithOptionalInterfaces(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Getwd failed: %v", err)
 		}
-		if cwd != filepath.Clean("/testdir") {
-			t.Errorf("expected '%s', got %s", filepath.Clean("/testdir"), cwd)
+		if cwd != "/testdir" {
+			t.Errorf("expected '/testdir', got %s", cwd)
 		}
 	})
 
@@ -193,8 +192,8 @@ func TestFileSystemRelativePathsWithDirNavigator(t *testing.T) {
 	// The ExtendFiler wrapper should pass through to the underlying
 	// dirnavigator when it implements that interface
 	cwd, _ := fs.Getwd()
-	if cwd != filepath.Clean("/home/user") {
-		t.Errorf("expected '%s', got %s", filepath.Clean("/home/user"), cwd)
+	if cwd != "/home/user" {
+		t.Errorf("expected '/home/user', got %s", cwd)
 	}
 }
 
